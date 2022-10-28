@@ -996,6 +996,8 @@ update_display(struct display *dp)
    }
 }
 
+//TODO: CHECKCBOX 
+//This function has a potential heap overflow within it, so we need to sandbox this function
 static int
 compare_read(struct display *dp, int applied_transforms)
 {

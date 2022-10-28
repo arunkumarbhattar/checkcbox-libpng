@@ -3150,6 +3150,11 @@ png_check_chunk_name(png_const_structrp png_ptr, png_uint_32 chunk_name)
    }
 }
 
+/*
+ * CHECKCBOX --> There was a possible integer overflow here -->
+ * In libpng 1.6.34, a wrong calculation of row_factor in the png_check_chunk_length function (pngrutil.c) may trigger
+ * an integer overflow and resultant divide-by-zero while processing a crafted PNG file, leading to a denial of service.
+ */
 void /* PRIVATE */
 png_check_chunk_length(png_const_structrp png_ptr, png_uint_32 length)
 {

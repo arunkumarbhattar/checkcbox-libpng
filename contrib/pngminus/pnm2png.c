@@ -514,7 +514,9 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
 /*
  * get_token - gets the first string after whitespace
  */
-
+//TODO: CHECKCBOX --> CVE-2018-14550
+// The below function --> move to sandbox --> https://github.com/glennrp/libpng/issues/246
+// Open the file in Sandboxed region
 void get_token (FILE *pnm_file, char *token_buf, size_t token_buf_size)
 {
   size_t i = 0;
