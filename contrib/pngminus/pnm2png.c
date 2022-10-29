@@ -9,7 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-
+#include <stdint.h>
+#include <stdio_tainted.h>
+#include <stdlib_tainted.h>
+#include <checkcbox_extensions.h>
 #ifndef BOOL
 #define BOOL unsigned char
 #endif
@@ -29,18 +32,37 @@
 
 /* function prototypes */
 
+/*
+Steps to Reproduce issue -->
+./pnm2png crash_pnm2png_stack_buffer_overflow_get_token 2.png
+PNM2PNG
+Error:  unsuccessful converting to PNG-image
+
+However, if you do the same on generic-C program with the below injected unfix fix,
+You will see
+(base) twinturbo@twinturbo-OptiPlex-3090:~/Desktop/untouchedlibpng/libpng/contrib/pngminus/cmake-build-debug$ ./pnm2png ../build/crash_pnm2png_stack_buffer_overflow_get_token 2.png
+=================================================================
+==103171==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffea90da0e0 at pc 0x55e96c376f3a bp 0x7ffea90d9e90 sp 0x7ffea90d9e80
+WRITE of size 1 at 0x7ffea90da0e0 thread T0
+    #0 0x55e96c376f39 in get_token /home/twinturbo/Desktop/untouchedlibpng/libpng/contrib/pngminus/pnm2png.c:552
+    #1 0x55e96c375570 in pnm2png /home/twinturbo/Desktop/untouchedlibpng/libpng/contrib/pngminus/pnm2png.c:200
+    #2 0x55e96c374ef5 in main /home/twinturbo/Desktop/untouchedlibpng/libpng/contrib/pngminus/pnm2png.c:125
+    #3 0x7f5ed61e0082 in __libc_start_main ../csu/libc-start.c:308
+    #4 0x55e96c3746fd in _start (/home/twinturbo/Desktop/untouchedlibpng/libpng/contrib/pngminus/cmake-build-debug/pnm2png+0x76fd)
+
+*/
 int main (int argc, char *argv[]);
 void usage ();
 BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
               BOOL interlace, BOOL alpha);
-void get_token (FILE *pnm_file, char *token_buf, size_t token_buf_size);
+// void get_token (FILE *pnm_file, _TPtr<char> token_buf, size_t token_buf_size); @BUFFER_OVERFLOW_FIX
+void get_token (FILE *pnm_file, _TPtr<char> token_buf); // @BUFFER_OVERFLOW
 png_uint_32 get_data (FILE *pnm_file, int depth);
 png_uint_32 get_value (FILE *pnm_file, int depth);
 
 /*
  *  main
  */
-
 int main (int argc, char *argv[])
 {
   FILE *fp_rd = stdin;
@@ -170,10 +192,15 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   png_byte      *pix_ptr = NULL;
   volatile png_uint_32 row_bytes;
 
-  char          type_token[16];
-  char          width_token[16];
-  char          height_token[16];
-  char          maxval_token[16];
+  _TPtr<char>   type_token = NULL;
+    type_token = TNtStrMalloc (16);
+  _TPtr<char>   width_token = NULL;
+    width_token = TNtStrMalloc (16);
+  _TPtr<char>   height_token = NULL;
+    height_token = TNtStrMalloc (16);
+  _TPtr<char>   maxval_token = NULL;
+    maxval_token = TNtStrMalloc (16);
+
   volatile int  color_type = 1;
   unsigned long ul_width = 0, ul_alpha_width = 0;
   unsigned long ul_height = 0, ul_alpha_height = 0;
@@ -194,10 +221,16 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   int           i;
 
   /* read header of PNM file */
+  // This commit fixes the buffer overflow --> so lets re-enact the buffer overflow -->https://github.com/glennrp/libpng/commit/1f0221fad7e7888ada87eda511dcbfd701de7d21
 
-  get_token (pnm_file, type_token, sizeof (type_token));
+  //get_token (pnm_file, type_token, sizeof (type_token)); @BUFFER_OVERFLOW_FIX
+  get_token (pnm_file, type_token);
   if (type_token[0] != 'P')
   {
+      t_free (type_token);
+      //t_free (width_token); // WASM does lazy malloc and freeing without putting soem data into it will result in a WASM crash
+//      t_free (height_token);
+//      t_free (maxval_token);
     return FALSE;
   }
   else if ((type_token[1] == '1') || (type_token[1] == '4'))
@@ -205,17 +238,23 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
 #if defined(PNG_WRITE_INVERT_SUPPORTED) || defined(PNG_WRITE_PACK_SUPPORTED)
     raw = (type_token[1] == '4');
     color_type = PNG_COLOR_TYPE_GRAY;
-    get_token (pnm_file, width_token, sizeof (width_token));
-    sscanf (width_token, "%lu", &ul_width);
+    //get_token (pnm_file, width_token, sizeof (width_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, width_token); // @BUFFER_OVERFLOW
+    t_sscanf (width_token, StaticCheckedToTStrAdaptor("%lu"), &ul_width);
     width = (png_uint_32) ul_width;
-    get_token (pnm_file, height_token, sizeof (height_token));
-    sscanf (height_token, "%lu", &ul_height);
+    //get_token (pnm_file, height_token, sizeof (height_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, height_token);// @BUFFER_OVERFLOW
+    t_sscanf (height_token, StaticCheckedToTStrAdaptor("%lu"), &ul_height);
     height = (png_uint_32) ul_height;
     bit_depth = 1;
     packed_bitmap = TRUE;
 #else
     fprintf (stderr, "PNM2PNG built without PNG_WRITE_INVERT_SUPPORTED and\n");
     fprintf (stderr, "PNG_WRITE_PACK_SUPPORTED can't read PBM (P1,P4) files\n");
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
 #endif
   }
@@ -223,14 +262,17 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   {
     raw = (type_token[1] == '5');
     color_type = PNG_COLOR_TYPE_GRAY;
-    get_token (pnm_file, width_token, sizeof (width_token));
-    sscanf (width_token, "%lu", &ul_width);
+    //get_token (pnm_file, width_token, sizeof (width_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, width_token);// @BUFFER_OVERFLOW
+    t_sscanf (width_token, StaticCheckedToTStrAdaptor("%lu"), &ul_width);
     width = (png_uint_32) ul_width;
-    get_token (pnm_file, height_token, sizeof (height_token));
-    sscanf (height_token, "%lu", &ul_height);
+    //get_token (pnm_file, height_token, sizeof (height_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, height_token);// @BUFFER_OVERFLOW
+    t_sscanf (height_token, StaticCheckedToTStrAdaptor("%lu"), &ul_height);
     height = (png_uint_32) ul_height;
-    get_token (pnm_file, maxval_token, sizeof (maxval_token));
-    sscanf (maxval_token, "%lu", &ul_maxval);
+    //get_token (pnm_file, maxval_token, sizeof (maxval_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, maxval_token);// @BUFFER_OVERFLOW
+    t_sscanf (maxval_token, StaticCheckedToTStrAdaptor("%lu"), &ul_maxval);
     maxval = (png_uint_32) ul_maxval;
 
     if (maxval <= 1)
@@ -244,20 +286,29 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     else if (maxval <= 65535U)
       bit_depth = 16;
     else /* maxval > 65535U */
-      return FALSE;
+    {
+        t_free (type_token);
+        t_free (width_token);
+        t_free (height_token);
+        t_free (maxval_token);
+        return FALSE;
+    }
   }
   else if ((type_token[1] == '3') || (type_token[1] == '6'))
   {
     raw = (type_token[1] == '6');
     color_type = PNG_COLOR_TYPE_RGB;
-    get_token (pnm_file, width_token, sizeof (width_token));
-    sscanf (width_token, "%lu", &ul_width);
+    //get_token (pnm_file, width_token, sizeof (width_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, width_token);// @BUFFER_OVERFLOW
+    t_sscanf (width_token, StaticCheckedToTStrAdaptor("%lu"), &ul_width);
     width = (png_uint_32) ul_width;
-    get_token (pnm_file, height_token, sizeof (height_token));
-    sscanf (height_token, "%lu", &ul_height);
+    //get_token (pnm_file, height_token, sizeof (height_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, height_token);// @BUFFER_OVERFLOW
+    t_sscanf (height_token, StaticCheckedToTStrAdaptor("%lu"), &ul_height);
     height = (png_uint_32) ul_height;
-    get_token (pnm_file, maxval_token, sizeof (maxval_token));
-    sscanf (maxval_token, "%lu", &ul_maxval);
+    //get_token (pnm_file, maxval_token, sizeof (maxval_token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, maxval_token);// @BUFFER_OVERFLOW
+    t_sscanf (maxval_token, StaticCheckedToTStrAdaptor("%lu"), &ul_maxval);
     maxval = (png_uint_32) ul_maxval;
     if (maxval <= 1)
       bit_depth = 1;
@@ -270,10 +321,20 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     else if (maxval <= 65535U)
       bit_depth = 16;
     else /* maxval > 65535U */
-      return FALSE;
+    {
+        t_free (type_token);
+        t_free (width_token);
+        t_free (height_token);
+        t_free (maxval_token);
+        return FALSE;
+    }
   }
   else
   {
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
 
@@ -286,26 +347,46 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     if (color_type == PNG_COLOR_TYPE_RGB)
       color_type = PNG_COLOR_TYPE_RGB_ALPHA;
 
-    get_token (alpha_file, type_token, sizeof (type_token));
+    //get_token (alpha_file, type_token, sizeof (type_token)); @BUFFER_OVERFLOW_FIX
+    get_token (alpha_file, type_token);// @BUFFER_OVERFLOW
     if (type_token[0] != 'P')
     {
+        t_free (type_token);
+        t_free (width_token);
+        t_free (height_token);
+        t_free (maxval_token);
       return FALSE;
     }
     else if ((type_token[1] == '2') || (type_token[1] == '5'))
     {
       alpha_raw = (type_token[1] == '5');
-      get_token (alpha_file, width_token, sizeof (width_token));
-      sscanf (width_token, "%lu", &ul_alpha_width);
+      //get_token (alpha_file, width_token, sizeof (width_token)); @BUFFER_OVERFLOW_FIX
+        get_token (alpha_file, width_token);// @BUFFER_OVERFLOW
+      t_sscanf (width_token, StaticCheckedToTStrAdaptor("%lu"), &ul_alpha_width);
       alpha_width = (png_uint_32) ul_alpha_width;
       if (alpha_width != width)
-        return FALSE;
-      get_token (alpha_file, height_token, sizeof (height_token));
-      sscanf (height_token, "%lu", &ul_alpha_height);
+      {
+          t_free (type_token);
+          t_free (width_token);
+          t_free (height_token);
+          t_free (maxval_token);
+          return FALSE;
+      }
+      //get_token (alpha_file, height_token, sizeof (height_token));    @BUFFER_OVERFLOW_FIX
+        get_token (alpha_file, height_token);    // @BUFFER_OVERFLOW
+      t_sscanf (height_token, StaticCheckedToTStrAdaptor("%lu"), &ul_alpha_height);
       alpha_height = (png_uint_32) ul_alpha_height;
       if (alpha_height != height)
-        return FALSE;
-      get_token (alpha_file, maxval_token, sizeof (maxval_token));
-      sscanf (maxval_token, "%lu", &ul_maxval);
+      {
+          t_free (type_token);
+          t_free (width_token);
+          t_free (height_token);
+          t_free (maxval_token);
+          return FALSE;
+      }
+      //get_token (alpha_file, maxval_token, sizeof (maxval_token)); @BUFFER_OVERFLOW_FIX
+        get_token (alpha_file, maxval_token);// @BUFFER_OVERFLOW
+      t_sscanf (maxval_token, StaticCheckedToTStrAdaptor("%lu"), &ul_maxval);
       maxval = (png_uint_32) ul_maxval;
       if (maxval <= 1)
         alpha_depth = 1;
@@ -318,12 +399,28 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       else if (maxval <= 65535U)
         alpha_depth = 16;
       else /* maxval > 65535U */
-        return FALSE;
+      {
+          t_free (type_token);
+          t_free (width_token);
+          t_free (height_token);
+          t_free (maxval_token);
+          return FALSE;
+      }
       if (alpha_depth != bit_depth)
-        return FALSE;
+      {
+          t_free (type_token);
+          t_free (width_token);
+          t_free (height_token);
+          t_free (maxval_token);
+          return FALSE;
+      }
     }
     else
     {
+        t_free (type_token);
+        t_free (width_token);
+        t_free (height_token);
+        t_free (maxval_token);
       return FALSE;
     }
   } /* end if alpha */
@@ -361,12 +458,20 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       ((size_t) height > (size_t) (-1) / (size_t) row_bytes))
   {
     /* too big */
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
   if ((png_pixels = (png_byte *)
        malloc ((size_t) row_bytes * (size_t) height)) == NULL)
   {
     /* out of memory */
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
 
@@ -442,6 +547,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   if (!png_ptr)
   {
     free (png_pixels);
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
   info_ptr = png_create_info_struct (png_ptr);
@@ -449,6 +558,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   {
     png_destroy_write_struct (&png_ptr, NULL);
     free (png_pixels);
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
 
@@ -464,6 +577,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   {
     png_destroy_write_struct (&png_ptr, &info_ptr);
     free (png_pixels);
+      t_free (type_token);
+      t_free (width_token);
+      t_free (height_token);
+      t_free (maxval_token);
     return FALSE;
   }
 
@@ -486,6 +603,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     {
       png_destroy_write_struct (&png_ptr, &info_ptr);
       free (png_pixels);
+        t_free (type_token);
+        t_free (width_token);
+        t_free (height_token);
+        t_free (maxval_token);
       return FALSE;
     }
   }
@@ -507,7 +628,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     free (row_pointers);
   if (png_pixels != NULL)
     free (png_pixels);
-
+    t_free (type_token);
+    t_free (width_token);
+    t_free (height_token);
+    t_free (maxval_token);
   return TRUE;
 } /* end of pnm2png */
 
@@ -516,10 +640,18 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
  */
 //TODO: CHECKCBOX --> CVE-2018-14550
 // The below function --> move to sandbox --> https://github.com/glennrp/libpng/issues/246
-// Open the file in Sandboxed region
-void get_token (FILE *pnm_file, char *token_buf, size_t token_buf_size)
+// Open the file in Sandboxed region --> Opening the file in WASM sandbox is unsupported as
+// WASM sandbox does not have kernel level access to the file system.
+
+/*
+ * Reproducing the issue
+ *
+ */
+//void get_token (FILE *pnm_file, _TPtr<char>token_buf, size_t token_buf_size) @BUFFER_OVERFLOW_FIX
+void get_token( FILE *pnm_file, _TPtr<char>token)// @BUFFER_OVERFLOW
 {
-  size_t i = 0;
+  //size_t i = 0; @BUFFER_OVERFLOW_FIX
+  int i = 0;// @BUFFER_OVERFLOW
   int ret;
 
   /* remove white-space and comment lines */
@@ -536,21 +668,27 @@ void get_token (FILE *pnm_file, char *token_buf, size_t token_buf_size)
       while ((ret != '\n') && (ret != '\r') && (ret != EOF));
     }
     if (ret == EOF) break;
-    token_buf[i] = (char) ret;
+    //token_buf[i] = (char) ret; @BUFFER_OVERFLOW_FIX
+    token[i] = (unsigned char) ret;// @BUFFER_OVERFLOW
   }
-  while ((ret == '\n') || (ret == '\r') || (ret == ' '));
+  //while ((ret == '\n') || (ret == '\r') || (ret == ' ')); @BUFFER_OVERFLOW_FIX
+    while ((token[i] == '\n') || (token[i] == '\r') || (token[i] == ' '));// @BUFFER_OVERFLOW
 
   /* read string */
   do
   {
     ret = fgetc (pnm_file);
     if (ret == EOF) break;
-    if (++i == token_buf_size - 1) break;
-    token_buf[i] = (char) ret;
+    i++;// @BUFFER_OVERFLOW
+    token[i] = (unsigned char) ret;// @BUFFER_OVERFLOW
+    //if (++i == token_buf_size - 1) break; @BUFFER_OVERFLOW_FIX
+    //token_buf[i] = (char) ret; @BUFFER_OVERFLOW_FIX
   }
-  while ((ret != '\n') && (ret != '\r') && (ret != ' '));
+  // while ((ret != '\n') && (ret != '\r') && (ret != ' '));
+  while ((token[i] != '\n') && (token[i] != '\r') && (token[i] != ' '));// @BUFFER_OVERFLOW
 
-  token_buf[i] = '\0';
+  //token_buf[i] = '\0'; @BUFFER_OVERFLOW_FIX
+  token[i] = '\0'; // @BUFFER_OVERFLOW
 
   return;
 }
@@ -597,7 +735,8 @@ png_uint_32 get_data (FILE *pnm_file, int depth)
 png_uint_32 get_value (FILE *pnm_file, int depth)
 {
   static png_uint_32 mask = 0;
-  char token[16];
+  _TPtr<char> token = NULL;
+  token = TNtStrMalloc (16);
   unsigned long ul_ret_value;
   png_uint_32 ret_value;
   int i = 0;
@@ -606,8 +745,9 @@ png_uint_32 get_value (FILE *pnm_file, int depth)
     for (i = 0; i < depth; i++)
       mask = (mask << 1) | 0x01;
 
-  get_token (pnm_file, token, sizeof (token));
-  sscanf (token, "%lu", &ul_ret_value);
+  //get_token (pnm_file, token, sizeof (token)); @BUFFER_OVERFLOW_FIX
+    get_token (pnm_file, token);// @BUFFER_OVERFLOW
+  t_sscanf (token, StaticCheckedToTStrAdaptor("%lu"), &ul_ret_value);
   ret_value = (png_uint_32) ul_ret_value;
 
   ret_value &= mask;

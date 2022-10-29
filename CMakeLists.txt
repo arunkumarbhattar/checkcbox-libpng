@@ -27,7 +27,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 cmake_policy(VERSION 3.1)
-
+set(CMAKE_C_COMPILER /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang) #ARUN_MACHINE_SPECIFIC --> path to Checkcbox compiler
 project(libpng C ASM)
 enable_testing()
 
