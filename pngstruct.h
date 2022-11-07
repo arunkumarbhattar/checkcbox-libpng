@@ -223,15 +223,25 @@ struct png_struct_def
                                * big_prev_row; while writing it is separately
                                * allocated if needed.
                                */
+   t_png_bytep t_prev_row;        /* buffer to save previous (unfiltered) row.
+                               * While reading this is a pointer into
+                               * big_prev_row; while writing it is separately
+                               * allocated if needed.
+                               */
    png_bytep row_buf;         /* buffer to save current (unfiltered) row.
                                * While reading, this is a pointer into
                                * big_row_buf; while writing it is separately
                                * allocated.
                                */
+    t_png_bytep t_row_buf;         /* buffer to save current (unfiltered) row.
+                               * While reading, this is a pointer into
+                               * big_row_buf; while writing it is separately
+                               * allocated.
+                               */
 #ifdef PNG_WRITE_FILTER_SUPPORTED
-   png_bytep try_row;    /* buffer to save trial row when filtering */
-   png_bytep tst_row;    /* buffer to save best trial row when filtering */
-#endif
+   t_png_bytep t_try_row;    /* buffer to save trial row when filtering */
+   t_png_bytep t_tst_row;    /* buffer to save best trial row when filtering */
+   #endif
    size_t info_rowbytes;      /* Added in 1.5.4: cache of updated row bytes */
 
    png_uint_32 idat_size;     /* current IDAT size for read */
@@ -405,11 +415,13 @@ struct png_struct_def
 #ifdef PNG_USER_MEM_SUPPORTED
    png_voidp mem_ptr;             /* user supplied struct for mem functions */
    png_malloc_ptr malloc_fn;      /* function for allocating memory */
+   t_png_malloc_ptr t_malloc_fn;      /* function for allocating memory */
    png_free_ptr free_fn;          /* function for freeing memory */
+   t_png_free_ptr t_free_fn;      /* function for freeing Tainted memory */
 #endif
 
 /* New member added in libpng-1.0.13 and 1.2.0 */
-   png_bytep big_row_buf;         /* buffer to save current (unfiltered) row */
+   t_png_bytep t_big_row_buf;         /* buffer to save current (unfiltered) row */
 
 #ifdef PNG_READ_QUANTIZE_SUPPORTED
 /* The following three members were added at version 1.0.14 and 1.2.4 */
@@ -464,7 +476,7 @@ struct png_struct_def
 #endif
 
 /* New member added in libpng-1.5.6 */
-   png_bytep big_prev_row;
+   t_png_bytep t_big_prev_row;
 
 /* New member added in libpng-1.5.7 */
    void (*read_filter[PNG_FILTER_VALUE_LAST-1])(png_row_infop row_info,

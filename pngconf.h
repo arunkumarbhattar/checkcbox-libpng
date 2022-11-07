@@ -575,15 +575,22 @@ typedef png_int_32 png_fixed_point;
 
 /* Add typedefs for pointers */
 typedef void                  * png_voidp;
+typedef _TPtr<void>             t_png_voidp;
 typedef const void            * png_const_voidp;
 typedef png_byte              * png_bytep;
+typedef _TPtr<png_byte>        t_png_bytep;
 typedef const png_byte        * png_const_bytep;
+typedef _TPtr< const png_byte>  t_png_const_bytep;
 typedef png_uint_32           * png_uint_32p;
+typedef _TPtr<png_uint_32>      t_png_uint_32p;
 typedef const png_uint_32     * png_const_uint_32p;
+typedef _TPtr<const png_uint_32> t_png_const_uint_32p;
 typedef png_int_32            * png_int_32p;
 typedef const png_int_32      * png_const_int_32p;
 typedef png_uint_16           * png_uint_16p;
+typedef _TPtr<png_uint_16>      t_png_uint_16p;
 typedef const png_uint_16     * png_const_uint_16p;
+typedef _TPtr<const png_uint_16> t_png_const_uint_16p;
 typedef png_int_16            * png_int_16p;
 typedef const png_int_16      * png_const_int_16p;
 typedef char                  * png_charp;
@@ -604,6 +611,7 @@ typedef const double * png_const_doublep;
 
 /* Pointers to pointers; i.e. arrays */
 typedef png_byte        * * png_bytepp;
+typedef _TPtr<_TPtr<png_byte> > t_png_bytepp;
 typedef png_uint_32     * * png_uint_32pp;
 typedef png_int_32      * * png_int_32pp;
 typedef png_uint_16     * * png_uint_16pp;

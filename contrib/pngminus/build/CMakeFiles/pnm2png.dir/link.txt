@@ -1,0 +1,1 @@
+/home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang   -rdynamic CMakeFiles/pnm2png.dir/pnm2png.c.o  -o pnm2png  libpng/libpng16.a -lz -lm 

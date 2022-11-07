@@ -69,7 +69,7 @@
  * before png.h is included, but load the configuration now if it is available.
  */
 #ifndef PNGLCONF_H
-#  include "pnglibconf.h"
+#  include "./cmake-build-debug/pnglibconf.h"
 #endif
 
 /* Local renames may change non-exported API functions from png.h */
@@ -500,7 +500,9 @@
 #  define png_voidcast(type, value) (value)
 #  define png_constcast(type, value) ((type)(void*)(const void*)(value))
 #  define png_aligncast(type, value) ((void*)(value))
+#  define t_png_aligncast(type, value) ((type)(value))
 #  define png_aligncastconst(type, value) ((const void*)(value))
+#  define t_png_aligncastconst(type, value) ((type)(value))
 #endif /* __cplusplus */
 
 #if defined(PNG_FLOATING_POINT_SUPPORTED) ||\
@@ -596,6 +598,8 @@
 #ifdef png_alignof
 #  define png_isaligned(ptr, type) \
    (((type)(size_t)((const void*)(ptr)) & (type)(png_alignof(type)-1)) == 0)
+#  define t_png_isaligned(ptr, type) \
+   (((type)(size_t)((_TPtr<const void>)(ptr)) & (type)(png_alignof(type)-1)) == 0)
 #else
 #  define png_isaligned(ptr, type) 0
 #endif
@@ -1117,8 +1121,12 @@ PNG_INTERNAL_FUNCTION(void,png_write_PLTE,(png_structrp png_ptr,
    png_const_colorp palette, png_uint_32 num_pal),PNG_EMPTY);
 
 PNG_INTERNAL_FUNCTION(void,png_compress_IDAT,(png_structrp png_ptr,
-   png_const_bytep row_data, png_alloc_size_t row_data_length, int flush),
+   t_png_const_bytep row_data, png_alloc_size_t row_data_length, int flush),
    PNG_EMPTY);
+
+PNG_INTERNAL_FUNCTION(void,t_png_compress_IDAT,(png_structrp png_ptr,
+        t_png_const_bytep row_data, png_alloc_size_t row_data_length, int flush),
+                      PNG_EMPTY);
 
 PNG_INTERNAL_FUNCTION(void,png_write_IEND,(png_structrp png_ptr),PNG_EMPTY);
 
@@ -1264,6 +1272,10 @@ PNG_INTERNAL_FUNCTION(void,png_write_start_row,(png_structrp png_ptr),
 PNG_INTERNAL_FUNCTION(void,png_combine_row,(png_const_structrp png_ptr,
     png_bytep row, int display),PNG_EMPTY);
 
+PNG_INTERNAL_FUNCTION(void,t_png_combine_row,(png_const_structrp png_ptr,
+        t_png_bytep row, int display),PNG_EMPTY);
+
+
 #ifdef PNG_READ_INTERLACING_SUPPORTED
 /* Expand an interlaced row: the 'row_info' describes the pass data that has
  * been read in and must correspond to the pixels in 'row', the pixels are
@@ -1273,6 +1285,8 @@ PNG_INTERNAL_FUNCTION(void,png_combine_row,(png_const_structrp png_ptr,
  */
 PNG_INTERNAL_FUNCTION(void,png_do_read_interlace,(png_row_infop row_info,
     png_bytep row, int pass, png_uint_32 transformations),PNG_EMPTY);
+PNG_INTERNAL_FUNCTION(void,t_png_do_read_interlace,(png_row_infop row_info,
+        t_png_bytep row, int pass, png_uint_32 transformations),PNG_EMPTY);
 #endif
 
 /* GRR TO DO (2.0 or whenever):  simplify other internal calling interfaces */
@@ -1281,6 +1295,8 @@ PNG_INTERNAL_FUNCTION(void,png_do_read_interlace,(png_row_infop row_info,
 /* Grab pixels out of a row for an interlaced pass */
 PNG_INTERNAL_FUNCTION(void,png_do_write_interlace,(png_row_infop row_info,
     png_bytep row, int pass),PNG_EMPTY);
+PNG_INTERNAL_FUNCTION(void,t_png_do_write_interlace,(png_row_infop row_info,
+        t_png_bytep row, int pass),PNG_EMPTY);
 #endif
 
 /* Unfilter a row: check the filter value before calling this, there is no point
@@ -1288,6 +1304,9 @@ PNG_INTERNAL_FUNCTION(void,png_do_write_interlace,(png_row_infop row_info,
  */
 PNG_INTERNAL_FUNCTION(void,png_read_filter_row,(png_structrp pp, png_row_infop
     row_info, png_bytep row, png_const_bytep prev_row, int filter),PNG_EMPTY);
+
+PNG_INTERNAL_FUNCTION(void,t_png_read_filter_row,(png_structrp pp, png_row_infop
+        row_info, t_png_bytep row, t_png_const_bytep prev_row, int filter),PNG_EMPTY);
 
 #if PNG_ARM_NEON_OPT > 0
 PNG_INTERNAL_FUNCTION(void,png_read_filter_row_up_neon,(png_row_infop row_info,
@@ -1360,6 +1379,10 @@ PNG_INTERNAL_FUNCTION(void,png_write_find_filter,(png_structrp png_ptr,
     png_row_infop row_info),PNG_EMPTY);
 
 #ifdef PNG_SEQUENTIAL_READ_SUPPORTED
+
+PNG_INTERNAL_FUNCTION(void,t_png_read_IDAT_data,(png_structrp png_ptr,
+        t_png_bytep output, png_alloc_size_t avail_out),PNG_EMPTY);
+
 PNG_INTERNAL_FUNCTION(void,png_read_IDAT_data,(png_structrp png_ptr,
    png_bytep output, png_alloc_size_t avail_out),PNG_EMPTY);
    /* Read 'avail_out' bytes of data from the IDAT stream.  If the output buffer
@@ -1399,30 +1422,30 @@ PNG_INTERNAL_FUNCTION(void,png_read_transform_info,(png_structrp png_ptr,
 #if defined(PNG_WRITE_FILLER_SUPPORTED) || \
     defined(PNG_READ_STRIP_ALPHA_SUPPORTED)
 PNG_INTERNAL_FUNCTION(void,png_do_strip_channel,(png_row_infop row_info,
-    png_bytep row, int at_start),PNG_EMPTY);
+    t_png_bytep row, int at_start),PNG_EMPTY);
 #endif
 
 #ifdef PNG_16BIT_SUPPORTED
 #if defined(PNG_READ_SWAP_SUPPORTED) || defined(PNG_WRITE_SWAP_SUPPORTED)
 PNG_INTERNAL_FUNCTION(void,png_do_swap,(png_row_infop row_info,
-    png_bytep row),PNG_EMPTY);
+    t_png_bytep row),PNG_EMPTY);
 #endif
 #endif
 
 #if defined(PNG_READ_PACKSWAP_SUPPORTED) || \
     defined(PNG_WRITE_PACKSWAP_SUPPORTED)
 PNG_INTERNAL_FUNCTION(void,png_do_packswap,(png_row_infop row_info,
-    png_bytep row),PNG_EMPTY);
+    t_png_bytep row),PNG_EMPTY);
 #endif
 
 #if defined(PNG_READ_INVERT_SUPPORTED) || defined(PNG_WRITE_INVERT_SUPPORTED)
 PNG_INTERNAL_FUNCTION(void,png_do_invert,(png_row_infop row_info,
-    png_bytep row),PNG_EMPTY);
+    t_png_bytep row),PNG_EMPTY);
 #endif
 
 #if defined(PNG_READ_BGR_SUPPORTED) || defined(PNG_WRITE_BGR_SUPPORTED)
 PNG_INTERNAL_FUNCTION(void,png_do_bgr,(png_row_infop row_info,
-    png_bytep row),PNG_EMPTY);
+    t_png_bytep row),PNG_EMPTY);
 #endif
 
 /* The following decodes the appropriate chunks, and does error correction,

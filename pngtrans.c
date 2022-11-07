@@ -259,7 +259,7 @@ png_set_invert_mono(png_structrp png_ptr)
 
 /* Invert monochrome grayscale data */
 void /* PRIVATE */
-png_do_invert(png_row_infop row_info, png_bytep row)
+png_do_invert(png_row_infop row_info, t_png_bytep row)
 {
    png_debug(1, "in png_do_invert");
 
@@ -268,7 +268,7 @@ png_do_invert(png_row_infop row_info, png_bytep row)
    */
    if (row_info->color_type == PNG_COLOR_TYPE_GRAY)
    {
-      png_bytep rp = row;
+      t_png_bytep rp = row;
       size_t i;
       size_t istop = row_info->rowbytes;
 
@@ -282,7 +282,7 @@ png_do_invert(png_row_infop row_info, png_bytep row)
    else if (row_info->color_type == PNG_COLOR_TYPE_GRAY_ALPHA &&
       row_info->bit_depth == 8)
    {
-      png_bytep rp = row;
+      t_png_bytep rp = row;
       size_t i;
       size_t istop = row_info->rowbytes;
 
@@ -297,7 +297,7 @@ png_do_invert(png_row_infop row_info, png_bytep row)
    else if (row_info->color_type == PNG_COLOR_TYPE_GRAY_ALPHA &&
       row_info->bit_depth == 16)
    {
-      png_bytep rp = row;
+      t_png_bytep rp = row;
       size_t i;
       size_t istop = row_info->rowbytes;
 
@@ -316,13 +316,13 @@ png_do_invert(png_row_infop row_info, png_bytep row)
 #if defined(PNG_READ_SWAP_SUPPORTED) || defined(PNG_WRITE_SWAP_SUPPORTED)
 /* Swaps byte order on 16-bit depth images */
 void /* PRIVATE */
-png_do_swap(png_row_infop row_info, png_bytep row)
+png_do_swap(png_row_infop row_info, t_png_bytep row)
 {
    png_debug(1, "in png_do_swap");
 
    if (row_info->bit_depth == 16)
    {
-      png_bytep rp = row;
+      t_png_bytep rp = row;
       png_uint_32 i;
       png_uint_32 istop= row_info->width * row_info->channels;
 
@@ -452,14 +452,15 @@ static const png_byte fourbppswaptable[256] = {
 
 /* Swaps pixel packing order within bytes */
 void /* PRIVATE */
-png_do_packswap(png_row_infop row_info, png_bytep row)
+png_do_packswap(png_row_infop row_info, t_png_bytep row)
 {
    png_debug(1, "in png_do_packswap");
 
    if (row_info->bit_depth < 8)
    {
-      png_bytep rp;
-      png_const_bytep end, table;
+      t_png_bytep rp = NULL;
+      t_png_const_bytep end = NULL;
+      png_const_bytep table = NULL;
 
       end = row + row_info->rowbytes;
 
@@ -492,11 +493,11 @@ png_do_packswap(png_row_infop row_info, png_bytep row)
  * end (not in the middle) of each pixel.
  */
 void /* PRIVATE */
-png_do_strip_channel(png_row_infop row_info, png_bytep row, int at_start)
+png_do_strip_channel(png_row_infop row_info, t_png_bytep row, int at_start)
 {
-   png_bytep sp = row; /* source pointer */
-   png_bytep dp = row; /* destination pointer */
-   png_bytep ep = row + row_info->rowbytes; /* One beyond end of row */
+   t_png_bytep sp = row; /* source pointer */
+   t_png_bytep dp = row; /* destination pointer */
+   t_png_bytep ep = row + row_info->rowbytes; /* One beyond end of row */
 
    /* At the start sp will point to the first byte to copy and dp to where
     * it is copied to.  ep always points just beyond the end of the row, so
@@ -616,7 +617,7 @@ png_do_strip_channel(png_row_infop row_info, png_bytep row, int at_start)
 #if defined(PNG_READ_BGR_SUPPORTED) || defined(PNG_WRITE_BGR_SUPPORTED)
 /* Swaps red and blue bytes within a pixel */
 void /* PRIVATE */
-png_do_bgr(png_row_infop row_info, png_bytep row)
+png_do_bgr(png_row_infop row_info, t_png_bytep row)
 {
    png_debug(1, "in png_do_bgr");
 
@@ -627,7 +628,7 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
       {
          if (row_info->color_type == PNG_COLOR_TYPE_RGB)
          {
-            png_bytep rp;
+            t_png_bytep rp = NULL;
             png_uint_32 i;
 
             for (i = 0, rp = row; i < row_width; i++, rp += 3)
@@ -640,7 +641,7 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
 
          else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
          {
-            png_bytep rp;
+            t_png_bytep rp = NULL;
             png_uint_32 i;
 
             for (i = 0, rp = row; i < row_width; i++, rp += 4)
@@ -657,7 +658,7 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
       {
          if (row_info->color_type == PNG_COLOR_TYPE_RGB)
          {
-            png_bytep rp;
+            t_png_bytep rp = NULL;
             png_uint_32 i;
 
             for (i = 0, rp = row; i < row_width; i++, rp += 6)
@@ -673,7 +674,7 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
 
          else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
          {
-            png_bytep rp;
+            t_png_bytep rp = NULL;
             png_uint_32 i;
 
             for (i = 0, rp = row; i < row_width; i++, rp += 8)

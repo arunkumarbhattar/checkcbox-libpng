@@ -662,9 +662,9 @@ png_free_data(png_const_structrp png_ptr, png_inforp info_ptr, png_uint_32 mask,
       {
          png_uint_32 row;
          for (row = 0; row < info_ptr->height; row++)
-            png_free(png_ptr, info_ptr->row_pointers[row]);
+            t_png_free(png_ptr, info_ptr->row_pointers[row]);
 
-         png_free(png_ptr, info_ptr->row_pointers);
+         t_png_free(png_ptr, info_ptr->row_pointers);
          info_ptr->row_pointers = NULL;
       }
       info_ptr->valid &= ~PNG_INFO_IDAT;

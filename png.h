@@ -327,7 +327,8 @@
 /* If pnglibconf.h is missing, you can
  * copy scripts/pnglibconf.h.prebuilt to pnglibconf.h
  */
-#   include "pnglibconf.h"
+//#   include "pnglibconf.h"
+#include "./cmake-build-debug/pnglibconf.h"
 #endif
 
 #ifndef PNG_VERSION_INFO_ONLY
@@ -437,9 +438,14 @@ typedef char* png_libpng_version_1_6_39_git;
  * (below) hides the creation and destruction of it.
  */
 typedef struct png_struct_def png_struct;
+typedef Tstruct t_png_struct_def t_png_struct;
 typedef const png_struct * png_const_structp;
+typedef const _TPtr<t_png_struct>  t_png_const_structp;
 typedef png_struct * png_structp;
+typedef _TPtr<t_png_struct>  t_png_structp;
 typedef png_struct * * png_structpp;
+typedef _TPtr<_TPtr<t_png_struct>> t_png_structpp;
+
 
 /* png_info contains information read from or to be written to a PNG file.  One
  * or more of these must exist while reading or creating a PNG file.  The
@@ -801,7 +807,7 @@ typedef PNG_CALLBACK(void, *png_progressive_row_ptr, (png_structp, png_bytep,
 #if defined(PNG_READ_USER_TRANSFORM_SUPPORTED) || \
     defined(PNG_WRITE_USER_TRANSFORM_SUPPORTED)
 typedef PNG_CALLBACK(void, *png_user_transform_ptr, (png_structp, png_row_infop,
-    png_bytep));
+    t_png_bytep));
 #endif
 
 #ifdef PNG_USER_CHUNKS_SUPPORTED
@@ -866,7 +872,10 @@ PNG_FUNCTION(void, (PNGCAPI *png_longjmp_ptr), PNGARG((jmp_buf, int)), typedef);
  */
 typedef PNG_CALLBACK(png_voidp, *png_malloc_ptr, (png_structp,
     png_alloc_size_t));
+typedef PNG_CALLBACK(t_png_voidp, *t_png_malloc_ptr, (png_structp,
+        png_alloc_size_t));
 typedef PNG_CALLBACK(void, *png_free_ptr, (png_structp, png_voidp));
+typedef PNG_CALLBACK(void, *t_png_free_ptr, (png_structp, t_png_voidp));
 
 /* Section 4: exported functions
  * Here are the function definitions most commonly used.  This is not
@@ -1377,16 +1386,26 @@ PNG_EXPORT(55, void, png_read_rows, (png_structrp png_ptr, png_bytepp row,
 /* Read a row of data. */
 PNG_EXPORT(56, void, png_read_row, (png_structrp png_ptr, png_bytep row,
     png_bytep display_row));
+/* Read one or more rows of image data. */
+PNG_EXPORT(255, void, t_png_read_row, (png_structrp png_ptr, t_png_bytep row,
+    t_png_bytep display_row));
 #endif
 
 #ifdef PNG_SEQUENTIAL_READ_SUPPORTED
 /* Read the whole image into memory at once. */
 PNG_EXPORT(57, void, png_read_image, (png_structrp png_ptr, png_bytepp image));
+
+/* Read the whole image into Tainted memory at once. */
+PNG_EXPORT(254, void, t_png_read_image, (png_structrp png_ptr, t_png_bytepp image));
 #endif
 
 /* Write a row of image data */
 PNG_EXPORT(58, void, png_write_row, (png_structrp png_ptr,
     png_const_bytep row));
+
+/* Write a row of Tainted image data */
+PNG_EXPORT(253, void, t_png_write_row, (png_structrp png_ptr,
+        t_png_const_bytep row));
 
 /* Write a few rows of image data: (*row) is not written; however, the type
  * is declared as writeable to maintain compatibility with previous versions
@@ -1398,6 +1417,9 @@ PNG_EXPORT(59, void, png_write_rows, (png_structrp png_ptr, png_bytepp row,
 
 /* Write the image data */
 PNG_EXPORT(60, void, png_write_image, (png_structrp png_ptr, png_bytepp image));
+
+/* Write the Tainted image data */
+PNG_EXPORT(252, void, t_png_write_image, (png_structrp png_ptr, t_png_bytepp image));
 
 /* Write the end of the PNG file. */
 PNG_EXPORT(61, void, png_write_end, (png_structrp png_ptr,
@@ -1715,9 +1737,16 @@ PNG_EXPORT(93, void, png_progressive_combine_row, (png_const_structrp png_ptr,
 
 PNG_EXPORTA(94, png_voidp, png_malloc, (png_const_structrp png_ptr,
     png_alloc_size_t size), PNG_ALLOCATED);
+
+PNG_EXPORTA(251, t_png_voidp, t_png_malloc, (png_const_structrp png_ptr,
+        png_alloc_size_t size), PNG_ALLOCATED);
+
 /* Added at libpng version 1.4.0 */
 PNG_EXPORTA(95, png_voidp, png_calloc, (png_const_structrp png_ptr,
     png_alloc_size_t size), PNG_ALLOCATED);
+
+PNG_EXPORTA(256, t_png_voidp, t_png_calloc, (png_const_structrp png_ptr,
+        png_alloc_size_t size), PNG_ALLOCATED);
 
 /* Added at libpng version 1.2.4 */
 PNG_EXPORTA(96, png_voidp, png_malloc_warn, (png_const_structrp png_ptr,
@@ -1739,6 +1768,9 @@ PNG_EXPORT(98, void, png_free_data, (png_const_structrp png_ptr,
  */
 PNG_EXPORT(99, void, png_data_freer, (png_const_structrp png_ptr,
     png_inforp info_ptr, int freer, png_uint_32 mask));
+
+/* Frees a pointer allocated by t_png_malloc() */
+PNG_EXPORT(250, void, t_png_free, (png_const_structrp png_ptr, t_png_voidp ptr));
 
 /* Assignments for png_data_freer */
 #define PNG_DESTROY_WILL_FREE_DATA 1
@@ -1846,14 +1878,14 @@ PNG_EXPORT(111, size_t, png_get_rowbytes, (png_const_structrp png_ptr,
 /* Returns row_pointers, which is an array of pointers to scanlines that was
  * returned from png_read_png().
  */
-PNG_EXPORT(112, png_bytepp, png_get_rows, (png_const_structrp png_ptr,
+PNG_EXPORT(112, t_png_bytepp, png_get_rows, (png_const_structrp png_ptr,
     png_const_inforp info_ptr));
 
 /* Set row_pointers, which is an array of pointers to scanlines for use
  * by png_write_png().
  */
 PNG_EXPORT(113, void, png_set_rows, (png_const_structrp png_ptr,
-    png_inforp info_ptr, png_bytepp row_pointers));
+    png_inforp info_ptr, t_png_bytepp row_pointers));
 #endif
 
 /* Returns number of color channels in image. */
@@ -3235,7 +3267,7 @@ PNG_EXPORT(244, int, png_set_option, (png_structrp png_ptr, int option,
  * one to use is one more than this.)
  */
 #ifdef PNG_EXPORT_LAST_ORDINAL
-  PNG_EXPORT_LAST_ORDINAL(249);
+  PNG_EXPORT_LAST_ORDINAL(256);
 #endif
 
 #ifdef __cplusplus

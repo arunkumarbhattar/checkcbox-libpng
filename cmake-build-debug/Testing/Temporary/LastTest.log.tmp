@@ -1,0 +1,119 @@
+Start testing: Oct 29 13:17 EDT
+----------------------------------------------------------
+1/32 Testing: pngtest
+1/32 Test: pngtest
+Command: "/snap/clion/209/bin/cmake/linux/bin/cmake" "-DLIBPNG=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/libpng16d.so.16.39.git" "-DTEST_COMMAND=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngtest" "-P" "/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/tests/pngtest.cmake"
+Directory: /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug
+"pngtest" start time: Oct 29 13:17 EDT
+Output:
+----------------------------------------------------------
+Running /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngtest /home/twinturbo/Desktop/checkcbox-libpng/pngtest.png
+
+ Testing libpng version 1.6.39.git
+   with zlib   version 1.2.11
+
+libpng version 1.6.39.git
+Copyright (c) 2018-2022 Cosmin Truta
+Copyright (c) 1998-2002,2004,2006-2018 Glenn Randers-Pehrson
+Copyright (c) 1996-1997 Andreas Dilger
+Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.
+ library (10639): libpng version 1.6.39.git
+
+ pngtest (10639): libpng version 1.6.39.git
+
+ Testing /home/twinturbo/Desktop/checkcbox-libpng/pngtest.png: eXIf type MM, 52 bytes
+
+ Pass 0: rwrwrwrwrwrwrwrwrw
+ Pass 1: rwrwrwrwrwrwrwrwrw
+ Pass 2: rwrwrwrwrwrwrwrw
+ Pass 3: rwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrw
+ Pass 4: rwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrw
+ Pass 5: rwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrw
+         rwrwrwrw
+ Pass 6: rwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrwrw
+         rwrwrwrwrw eXIf type MM, 52 bytes
+ eXIf type MM, 52 bytes
+
+ PASS (9782 zero samples)
+ tIME = 7 Jun 1996 17:58:08 +0000
+ libpng passes test
+ Default limits:
+  width_max  = 1000000
+  height_max = 1000000
+  cache_max  = 1000
+  malloc_max = 8000000
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"pngtest" end time: Oct 29 13:17 EDT
+"pngtest" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/32 Testing: pngvalid-gamma-16-to-8
+2/32 Test: pngvalid-gamma-16-to-8
+Command: "/snap/clion/209/bin/cmake/linux/bin/cmake" "-DLIBPNG=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/libpng16d.so.16.39.git" "-DTEST_COMMAND=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid" "-P" "/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/tests/pngvalid-gamma-16-to-8.cmake"
+Directory: /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug
+"pngvalid-gamma-16-to-8" start time: Oct 29 13:17 EDT
+Output:
+----------------------------------------------------------
+Running /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid --gamma-16-to-8
+
+Gamma correction with 16 to 8 bit reduction:
+ 16 bit gray:  1.97052
+ 16 bit color: 1.97052
+PASS: pngvalid --gamma-16-to-8 (floating point arithmetic)
+<end of output>
+Test time =   0.91 sec
+----------------------------------------------------------
+Test Passed.
+"pngvalid-gamma-16-to-8" end time: Oct 29 13:17 EDT
+"pngvalid-gamma-16-to-8" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/32 Testing: pngvalid-gamma-alpha-mode
+3/32 Test: pngvalid-gamma-alpha-mode
+Command: "/snap/clion/209/bin/cmake/linux/bin/cmake" "-DLIBPNG=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/libpng16d.so.16.39.git" "-DTEST_COMMAND=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid" "-P" "/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/tests/pngvalid-gamma-alpha-mode.cmake"
+Directory: /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug
+"pngvalid-gamma-alpha-mode" start time: Oct 29 13:17 EDT
+Output:
+----------------------------------------------------------
+Running /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid --gamma-alpha-mode
+
+Gamma correction with alpha mode:
+  8 bit gray:  17.48251
+  8 bit color: 17.48251
+ 16 bit gray:  309.24044
+ 16 bit color: 310.97330
+PASS: pngvalid --gamma-alpha-mode (floating point arithmetic)
+<end of output>
+Test time =   4.20 sec
+----------------------------------------------------------
+Test Passed.
+"pngvalid-gamma-alpha-mode" end time: Oct 29 13:17 EDT
+"pngvalid-gamma-alpha-mode" time elapsed: 00:00:04
+----------------------------------------------------------
+
+4/32 Testing: pngvalid-gamma-background
+4/32 Test: pngvalid-gamma-background
+Command: "/snap/clion/209/bin/cmake/linux/bin/cmake" "-DLIBPNG=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/libpng16d.so.16.39.git" "-DTEST_COMMAND=/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid" "-P" "/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/tests/pngvalid-gamma-background.cmake"
+Directory: /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug
+"pngvalid-gamma-background" start time: Oct 29 13:17 EDT
+Output:
+----------------------------------------------------------
+Running /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug/pngvalid --gamma-background
+
+Gamma correction with background:
+  8 bit gray:  13.81700
+  8 bit color: 19.16293
+ 16 bit gray:  1.54228
+ 16 bit color: 57.89386
+PASS: pngvalid --gamma-background (floating point arithmetic)
+<end of output>
+Test time =   1.62 sec
+----------------------------------------------------------
+Test Passed.
+"pngvalid-gamma-background" end time: Oct 29 13:17 EDT
+"pngvalid-gamma-background" time elapsed: 00:00:01
+----------------------------------------------------------
+

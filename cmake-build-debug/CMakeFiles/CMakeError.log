@@ -1,0 +1,5 @@
+Checking whether the ASM compiler is GNU using "--version" did not match "(GNU assembler)|(GCC)|(Free Software Foundation)":
+clang version 12.0.0 (https://github.com/arunkumarbhattar/CheckCBox_Compiler.git 766dbbe488d34cf568ca534cdc1a6a67ea970bef)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin

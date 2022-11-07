@@ -1,0 +1,16 @@
+/snap/clion/209/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -S /home/twinturbo/Desktop/checkcbox-libpng/contrib/pngminus -B /home/twinturbo/Desktop/checkcbox-libpng/contrib/pngminus/cmake-build-debug
+-- The C compiler identification is Clang 12.0.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.11") 
+-- Performing Test HAVE_LD_VERSION_SCRIPT
+-- Performing Test HAVE_LD_VERSION_SCRIPT - Success
+-- Symbol prefix: 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/twinturbo/Desktop/checkcbox-libpng/contrib/pngminus/cmake-build-debug

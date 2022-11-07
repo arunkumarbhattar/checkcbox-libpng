@@ -1,0 +1,1 @@
+/home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang -g -rdynamic CMakeFiles/pngfix.dir/contrib/tools/pngfix.c.o -o pngfix  -Wl,-rpath,/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug: libpng16d.so.16.39.git -lz -lm 

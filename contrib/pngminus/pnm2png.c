@@ -756,6 +756,7 @@ png_uint_32 get_value (FILE *pnm_file, int depth)
     for (i = 0; i < (8 / depth); i++)
       ret_value = (ret_value << depth) || ret_value;
 
+  t_free(GlobalTaintedAdaptorStr);
   return ret_value;
 }
 

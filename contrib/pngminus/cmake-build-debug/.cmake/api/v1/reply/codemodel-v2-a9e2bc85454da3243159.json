@@ -1,0 +1,320 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.1"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						6,
+						18
+					]
+				},
+				{
+					"build" : "libpng",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-libpng-Debug-fc7b272e1967aeffab4f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.1"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "/home/twinturbo/Desktop/checkcbox-libpng",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						19,
+						20,
+						21,
+						22,
+						23,
+						24,
+						25
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "PNGMINUS",
+					"targetIndexes" : 
+					[
+						6,
+						18
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "libpng",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						19,
+						20,
+						21,
+						22,
+						23,
+						24,
+						25
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "genfiles::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-genfiles-Debug-bed0ceab79b612f65780.json",
+					"name" : "genfiles",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "genprebuilt::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-genprebuilt-Debug-bbfbd0df030e41b31aec.json",
+					"name" : "genprebuilt",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "gensym::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-gensym-Debug-9527c970a46f2e0a0e36.json",
+					"name" : "gensym",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "genvers::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-genvers-Debug-d062dd567f1adcf156fa.json",
+					"name" : "genvers",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "png::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-png-Debug-e76cfe5223e71c68269e.json",
+					"name" : "png",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "png-fix-itxt::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-png-fix-itxt-Debug-bbaba7a529dfe53795d1.json",
+					"name" : "png-fix-itxt",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "png2pnm::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-png2pnm-Debug-2ebd99fa75914c2b47b1.json",
+					"name" : "png2pnm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "png_static::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-png_static-Debug-7b809b5677c1fde2f0e0.json",
+					"name" : "png_static",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngfix::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngfix-Debug-fb6e8306c33c25a4e6f6.json",
+					"name" : "pngfix",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngimage::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngimage-Debug-c25d8002a2b4d771a430.json",
+					"name" : "pngimage",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pnglibconf_c::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pnglibconf_c-Debug-b8194faff5a2730abda1.json",
+					"name" : "pnglibconf_c",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pnglibconf_h::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pnglibconf_h-Debug-14b5d8cdd39f7868eb42.json",
+					"name" : "pnglibconf_h",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pnglibconf_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pnglibconf_out-Debug-487a7ff5d7fff4519ec9.json",
+					"name" : "pnglibconf_out",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngprefix_h::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngprefix_h-Debug-926ca3567a7ce5cc8a65.json",
+					"name" : "pngprefix_h",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngstest::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngstest-Debug-01203422cc118accbd8f.json",
+					"name" : "pngstest",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngtest::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngtest-Debug-9d2c7d52d3850b19b9f4.json",
+					"name" : "pngtest",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngunknown::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngunknown-Debug-8b86a8af2abac5f790c8.json",
+					"name" : "pngunknown",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "pngvalid::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-pngvalid-Debug-8937b93ea983db1f9e69.json",
+					"name" : "pngvalid",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "pnm2png::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-pnm2png-Debug-532cc44fa2f350ba1241.json",
+					"name" : "pnm2png",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_intprefix_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_intprefix_out-Debug-362d70e585ec6d51bb25.json",
+					"name" : "scripts_intprefix_out",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_pnglibconf_c::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_pnglibconf_c-Debug-40fa7a78c0a628e03d22.json",
+					"name" : "scripts_pnglibconf_c",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_prefix_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_prefix_out-Debug-082474736945de12631e.json",
+					"name" : "scripts_prefix_out",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_sym_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_sym_out-Debug-ca88c74c0b7c098e3374.json",
+					"name" : "scripts_sym_out",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_symbols_chk::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_symbols_chk-Debug-055ee7dfc100319a9322.json",
+					"name" : "scripts_symbols_chk",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_symbols_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_symbols_out-Debug-f42cb64bfbbd48ab4e15.json",
+					"name" : "scripts_symbols_out",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "scripts_vers_out::@0ccab45d953d31f6e478",
+					"jsonFile" : "target-scripts_vers_out-Debug-7f61e8896ab1a074553c.json",
+					"name" : "scripts_vers_out",
+					"projectIndex" : 1
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/twinturbo/Desktop/checkcbox-libpng/contrib/pngminus/cmake-build-debug",
+		"source" : "/home/twinturbo/Desktop/checkcbox-libpng/contrib/pngminus"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 4
+	}
+}

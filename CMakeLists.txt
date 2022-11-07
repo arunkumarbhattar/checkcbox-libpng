@@ -836,7 +836,13 @@ if(PNG_TESTS AND PNG_SHARED)
                OPTIONS --strict vpAg=if-safe
                FILES "${PNGTEST_PNG}")
 
+  add_link_options(-ldl -lstdc++ -g )
   add_executable(pngimage ${pngimage_sources})
+  target_compile_options(pngimage PRIVATE -g -ferror-limit=92385493 -fsanitize=address ) # CheckCBox requirement TESTING --> To track heap/stack overflows and leaks
+  target_link_options(pngimage PRIVATE -g  -fsanitize=address -static-libsan)
+  target_link_libraries(pngimage "${CMAKE_SOURCE_DIR}/CheckCBoxLibs/libSBX_CON_LIB.a"
+          "${CMAKE_SOURCE_DIR}/CheckCBoxLibs/libisc_lib_final.a"
+          dl)
   target_link_libraries(pngimage png)
 
   png_add_test(NAME pngimage-quick

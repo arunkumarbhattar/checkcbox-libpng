@@ -11,6 +11,7 @@
  * and license in png.h
  */
 
+#include <string_tainted.h>
 #include "pngpriv.h"
 #ifdef PNG_SIMPLIFIED_WRITE_STDIO_SUPPORTED
 #  include <errno.h>
@@ -638,6 +639,38 @@ png_write_image(png_structrp png_ptr, png_bytepp image)
    }
 }
 
+void PNGAPI
+t_png_write_image(png_structrp png_ptr, t_png_bytepp image)
+{
+    png_uint_32 i; /* row index */
+    int pass, num_pass; /* pass variables */
+    t_png_bytepp rp = NULL; /* points to current row */
+
+    if (png_ptr == NULL)
+        return;
+
+    png_debug(1, "in png_write_image");
+
+#ifdef PNG_WRITE_INTERLACING_SUPPORTED
+    /* Initialize interlace handling.  If image is not interlaced,
+     * this will set pass to 1
+     */
+    num_pass = png_set_interlace_handling(png_ptr);
+#else
+    num_pass = 1;
+#endif
+    /* Loop through passes */
+    for (pass = 0; pass < num_pass; pass++)
+    {
+        /* Loop through image */
+        for (i = 0, rp = image; i < png_ptr->height; i++, rp++)
+        {
+            t_png_write_row(png_ptr, *rp);
+        }
+    }
+}
+
+
 #ifdef PNG_MNG_FEATURES_SUPPORTED
 /* Performs intrapixel differencing  */
 static void
@@ -700,6 +733,68 @@ png_do_write_intrapixel(png_row_infop row_info, png_bytep row)
       }
 #endif /* WRITE_16BIT */
    }
+}
+
+static void
+t_png_do_write_intrapixel(png_row_infop row_info, t_png_bytep row)
+{
+    png_debug(1, "in png_do_write_intrapixel");
+
+    if ((row_info->color_type & PNG_COLOR_MASK_COLOR) != 0)
+    {
+        int bytes_per_pixel;
+        png_uint_32 row_width = row_info->width;
+        if (row_info->bit_depth == 8)
+        {
+            t_png_bytep rp = NULL;
+            png_uint_32 i;
+
+            if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+                bytes_per_pixel = 3;
+
+            else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+                bytes_per_pixel = 4;
+
+            else
+                return;
+
+            for (i = 0, rp = row; i < row_width; i++, rp += bytes_per_pixel)
+            {
+                *(rp)     = (png_byte)(*rp       - *(rp + 1));
+                *(rp + 2) = (png_byte)(*(rp + 2) - *(rp + 1));
+            }
+        }
+
+#ifdef PNG_WRITE_16BIT_SUPPORTED
+        else if (row_info->bit_depth == 16)
+        {
+            t_png_bytep rp = NULL;
+            png_uint_32 i;
+
+            if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+                bytes_per_pixel = 6;
+
+            else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+                bytes_per_pixel = 8;
+
+            else
+                return;
+
+            for (i = 0, rp = row; i < row_width; i++, rp += bytes_per_pixel)
+            {
+                png_uint_32 s0   = (png_uint_32)(*(rp    ) << 8) | *(rp + 1);
+                png_uint_32 s1   = (png_uint_32)(*(rp + 2) << 8) | *(rp + 3);
+                png_uint_32 s2   = (png_uint_32)(*(rp + 4) << 8) | *(rp + 5);
+                png_uint_32 red  = (png_uint_32)((s0 - s1) & 0xffffL);
+                png_uint_32 blue = (png_uint_32)((s2 - s1) & 0xffffL);
+                *(rp    ) = (png_byte)(red >> 8);
+                *(rp + 1) = (png_byte)red;
+                *(rp + 4) = (png_byte)(blue >> 8);
+                *(rp + 5) = (png_byte)blue;
+            }
+        }
+#endif /* WRITE_16BIT */
+    }
 }
 #endif /* MNG_FEATURES */
 
@@ -912,6 +1007,215 @@ png_write_row(png_structrp png_ptr, png_const_bytep row)
       (*(png_ptr->write_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
 }
 
+/* Called by user to write a row of image data */
+void PNGAPI
+t_png_write_row(png_structrp png_ptr, t_png_const_bytep row)
+{
+   /* 1.5.6: moved from png_struct to be a local structure: */
+   png_row_info row_info;
+
+   if (png_ptr == NULL)
+      return;
+
+   png_debug2(1, "in png_write_row (row %u, pass %d)",
+       png_ptr->row_number, png_ptr->pass);
+
+   /* Initialize transformations and other stuff if first time */
+   if (png_ptr->row_number == 0 && png_ptr->pass == 0)
+   {
+      /* Make sure we wrote the header info */
+      if ((png_ptr->mode & PNG_WROTE_INFO_BEFORE_PLTE) == 0)
+         png_error(png_ptr,
+             "png_write_info was never called before png_write_row");
+
+      /* Check for transforms that have been set but were defined out */
+#if !defined(PNG_WRITE_INVERT_SUPPORTED) && defined(PNG_READ_INVERT_SUPPORTED)
+      if ((png_ptr->transformations & PNG_INVERT_MONO) != 0)
+         png_warning(png_ptr, "PNG_WRITE_INVERT_SUPPORTED is not defined");
+#endif
+
+#if !defined(PNG_WRITE_FILLER_SUPPORTED) && defined(PNG_READ_FILLER_SUPPORTED)
+      if ((png_ptr->transformations & PNG_FILLER) != 0)
+         png_warning(png_ptr, "PNG_WRITE_FILLER_SUPPORTED is not defined");
+#endif
+#if !defined(PNG_WRITE_PACKSWAP_SUPPORTED) && \
+    defined(PNG_READ_PACKSWAP_SUPPORTED)
+      if ((png_ptr->transformations & PNG_PACKSWAP) != 0)
+         png_warning(png_ptr,
+             "PNG_WRITE_PACKSWAP_SUPPORTED is not defined");
+#endif
+
+#if !defined(PNG_WRITE_PACK_SUPPORTED) && defined(PNG_READ_PACK_SUPPORTED)
+      if ((png_ptr->transformations & PNG_PACK) != 0)
+         png_warning(png_ptr, "PNG_WRITE_PACK_SUPPORTED is not defined");
+#endif
+
+#if !defined(PNG_WRITE_SHIFT_SUPPORTED) && defined(PNG_READ_SHIFT_SUPPORTED)
+      if ((png_ptr->transformations & PNG_SHIFT) != 0)
+         png_warning(png_ptr, "PNG_WRITE_SHIFT_SUPPORTED is not defined");
+#endif
+
+#if !defined(PNG_WRITE_BGR_SUPPORTED) && defined(PNG_READ_BGR_SUPPORTED)
+      if ((png_ptr->transformations & PNG_BGR) != 0)
+         png_warning(png_ptr, "PNG_WRITE_BGR_SUPPORTED is not defined");
+#endif
+
+#if !defined(PNG_WRITE_SWAP_SUPPORTED) && defined(PNG_READ_SWAP_SUPPORTED)
+      if ((png_ptr->transformations & PNG_SWAP_BYTES) != 0)
+         png_warning(png_ptr, "PNG_WRITE_SWAP_SUPPORTED is not defined");
+#endif
+
+      png_write_start_row(png_ptr);
+   }
+
+#ifdef PNG_WRITE_INTERLACING_SUPPORTED
+   /* If interlaced and not interested in row, return */
+   if (png_ptr->interlaced != 0 &&
+       (png_ptr->transformations & PNG_INTERLACE) != 0)
+   {
+      switch (png_ptr->pass)
+      {
+         case 0:
+            if ((png_ptr->row_number & 0x07) != 0)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 1:
+            if ((png_ptr->row_number & 0x07) != 0 || png_ptr->width < 5)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 2:
+            if ((png_ptr->row_number & 0x07) != 4)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 3:
+            if ((png_ptr->row_number & 0x03) != 0 || png_ptr->width < 3)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 4:
+            if ((png_ptr->row_number & 0x03) != 2)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 5:
+            if ((png_ptr->row_number & 0x01) != 0 || png_ptr->width < 2)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 6:
+            if ((png_ptr->row_number & 0x01) == 0)
+            {
+               png_write_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         default: /* error: ignore it */
+            break;
+      }
+   }
+#endif
+
+   /* Set up row info for transformations */
+   row_info.color_type = png_ptr->color_type;
+   row_info.width = png_ptr->usr_width;
+   row_info.channels = png_ptr->usr_channels;
+   row_info.bit_depth = png_ptr->usr_bit_depth;
+   row_info.pixel_depth = (png_byte)(row_info.bit_depth * row_info.channels);
+   row_info.rowbytes = PNG_ROWBYTES(row_info.pixel_depth, row_info.width);
+
+   png_debug1(3, "row_info->color_type = %d", row_info.color_type);
+   png_debug1(3, "row_info->width = %u", row_info.width);
+   png_debug1(3, "row_info->channels = %d", row_info.channels);
+   png_debug1(3, "row_info->bit_depth = %d", row_info.bit_depth);
+   png_debug1(3, "row_info->pixel_depth = %d", row_info.pixel_depth);
+   png_debug1(3, "row_info->rowbytes = %lu", (unsigned long)row_info.rowbytes);
+
+   /* Copy user's row into buffer, leaving room for filter byte. */
+   t_memcpy(png_ptr->t_row_buf + 1, row, row_info.rowbytes);
+
+#ifdef PNG_WRITE_INTERLACING_SUPPORTED
+   /* Handle interlacing */
+   if (png_ptr->interlaced && png_ptr->pass < 6 &&
+       (png_ptr->transformations & PNG_INTERLACE) != 0)
+   {
+      t_png_do_write_interlace(&row_info, png_ptr->t_row_buf + 1, png_ptr->pass);
+      /* This should always get caught above, but still ... */
+      if (row_info.width == 0)
+      {
+         png_write_finish_row(png_ptr);
+         return;
+      }
+   }
+#endif
+
+#ifdef PNG_WRITE_TRANSFORMS_SUPPORTED
+   /* Handle other transformations */
+   if (png_ptr->transformations != 0)
+      png_do_write_transformations(png_ptr, &row_info);
+#endif
+
+   /* At this point the row_info pixel depth must match the 'transformed' depth,
+    * which is also the output depth.
+    */
+   if (row_info.pixel_depth != png_ptr->pixel_depth ||
+       row_info.pixel_depth != png_ptr->transformed_pixel_depth)
+      png_error(png_ptr, "internal write transform logic error");
+
+#ifdef PNG_MNG_FEATURES_SUPPORTED
+   /* Write filter_method 64 (intrapixel differencing) only if
+    * 1. Libpng was compiled with PNG_MNG_FEATURES_SUPPORTED and
+    * 2. Libpng did not write a PNG signature (this filter_method is only
+    *    used in PNG datastreams that are embedded in MNG datastreams) and
+    * 3. The application called png_permit_mng_features with a mask that
+    *    included PNG_FLAG_MNG_FILTER_64 and
+    * 4. The filter_method is 64 and
+    * 5. The color_type is RGB or RGBA
+    */
+   if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
+       (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
+   {
+      /* Intrapixel differencing */
+      t_png_do_write_intrapixel(&row_info, png_ptr->t_row_buf + 1);
+   }
+#endif
+
+/* Added at libpng-1.5.10 */
+#ifdef PNG_WRITE_CHECK_FOR_INVALID_INDEX_SUPPORTED
+   /* Check for out-of-range palette index */
+   if (row_info.color_type == PNG_COLOR_TYPE_PALETTE &&
+       png_ptr->num_palette_max >= 0)
+      png_do_check_palette_indexes(png_ptr, &row_info);
+#endif
+
+   /* Find a filter if necessary, filter the row and write it out. */
+   png_write_find_filter(png_ptr, &row_info);
+
+   if (png_ptr->write_row_fn != NULL)
+      (*(png_ptr->write_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
+}
+
 #ifdef PNG_WRITE_FLUSH_SUPPORTED
 /* Set the automatic flush interval or 0 to turn flushing off */
 void PNGAPI
@@ -956,15 +1260,15 @@ png_write_destroy(png_structrp png_ptr)
 
    /* Free our memory.  png_free checks NULL for us. */
    png_free_buffer_list(png_ptr, &png_ptr->zbuffer_list);
-   png_free(png_ptr, png_ptr->row_buf);
-   png_ptr->row_buf = NULL;
+   t_png_free(png_ptr, png_ptr->t_row_buf);
+   png_ptr->t_row_buf = NULL;
 #ifdef PNG_WRITE_FILTER_SUPPORTED
    png_free(png_ptr, png_ptr->prev_row);
-   png_free(png_ptr, png_ptr->try_row);
-   png_free(png_ptr, png_ptr->tst_row);
+   t_png_free(png_ptr, png_ptr->t_try_row);
+   t_png_free(png_ptr, png_ptr->t_tst_row);
    png_ptr->prev_row = NULL;
-   png_ptr->try_row = NULL;
-   png_ptr->tst_row = NULL;
+   png_ptr->t_try_row = NULL;
+   png_ptr->t_tst_row = NULL;
 #endif
 
 #ifdef PNG_SET_UNKNOWN_CHUNKS_SUPPORTED
@@ -1114,15 +1418,15 @@ png_set_filter(png_structrp png_ptr, int method, int filters)
          buf_size = PNG_ROWBYTES(png_ptr->usr_channels * png_ptr->usr_bit_depth,
              png_ptr->width) + 1;
 
-         if (png_ptr->try_row == NULL)
-            png_ptr->try_row = png_voidcast(png_bytep,
-                png_malloc(png_ptr, buf_size));
+         if (png_ptr->t_try_row == NULL)
+            png_ptr->t_try_row = (t_png_bytep)png_voidcast(t_png_bytep,
+                t_png_malloc(png_ptr, buf_size));
 
          if (num_filters > 1)
          {
-            if (png_ptr->tst_row == NULL)
-               png_ptr->tst_row = png_voidcast(png_bytep,
-                   png_malloc(png_ptr, buf_size));
+            if (png_ptr->t_tst_row == NULL)
+               png_ptr->t_tst_row = (t_png_bytep)png_voidcast(t_png_bytep,
+                   t_png_malloc(png_ptr, buf_size));
          }
       }
       png_ptr->do_filter = (png_byte)filters;
@@ -1462,7 +1766,7 @@ png_write_png(png_structrp png_ptr, png_inforp info_ptr,
    /* ----------------------- end of transformations ------------------- */
 
    /* Write the bits */
-   png_write_image(png_ptr, info_ptr->row_pointers);
+   t_png_write_image(png_ptr, info_ptr->row_pointers);
 
    /* It is REQUIRED to call this to finish writing the rest of the file */
    png_write_end(png_ptr, info_ptr);

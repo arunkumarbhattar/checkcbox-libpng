@@ -257,11 +257,13 @@ defined(PNG_READ_BACKGROUND_SUPPORTED)
 #endif
 
 #ifdef PNG_INFO_IMAGE_SUPPORTED
-   /* Memory has been allocated if (valid & PNG_ALLOCATED_INFO_ROWS)
-      non-zero */
-   /* Data valid if (valid & PNG_INFO_IDAT) non-zero */
-   png_bytepp row_pointers;        /* the image bits */
+    /* Memory has been allocated if (valid & PNG_ALLOCATED_INFO_ROWS)
+    non-zero */
+    /* Data valid if (valid & PNG_INFO_IDAT) non-zero */
+    t_png_bytepp row_pointers;        /* the image bits */
 #endif
 
 };
+
+
 #endif /* PNGINFO_H */
