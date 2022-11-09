@@ -1,1 +1,0 @@
-/home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang -g -rdynamic -ldl -lstdc++ -g -fsanitize=address CMakeFiles/pnm2png.dir/pnm2png.c.o -o pnm2png  libpng/libpng16d.a ../CheckCBoxLibs/libSBX_CON_LIB.a ../CheckCBoxLibs/libisc_lib_final.a -ldl -lz -lm 

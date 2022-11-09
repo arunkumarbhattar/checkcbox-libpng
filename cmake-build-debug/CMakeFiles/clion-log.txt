@@ -1,5 +1,0 @@
-/snap/clion/209/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -S /home/twinturbo/Desktop/checkcbox-libpng -B /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug
--- Symbol prefix: 
--- Configuring done
--- Generating done
--- Build files have been written to: /home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug

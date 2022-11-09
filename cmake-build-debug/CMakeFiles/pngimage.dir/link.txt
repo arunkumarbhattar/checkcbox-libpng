@@ -1,1 +1,0 @@
-/home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang -g -rdynamic CMakeFiles/pngimage.dir/contrib/libtests/pngimage.c.o -o pngimage  -Wl,-rpath,/home/twinturbo/Desktop/checkcbox-libpng/cmake-build-debug libpng16d.so.16.39.git -lz -lm 
