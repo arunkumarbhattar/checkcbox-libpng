@@ -328,7 +328,7 @@
  * copy scripts/pnglibconf.h.prebuilt to pnglibconf.h
  */
 //#   include "pnglibconf.h"
-#include "./cmake-build-debug/pnglibconf.h"
+#include "pnglibconf.h"
 #endif
 
 #ifndef PNG_VERSION_INFO_ONLY

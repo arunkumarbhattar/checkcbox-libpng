@@ -601,14 +601,14 @@ png_read_row(png_structrp png_ptr, png_bytep row, png_bytep dsp_row)
       png_error(png_ptr, "Invalid attempt to read row data");
 
    /* Fill the row with IDAT data: */
-   png_ptr->row_buf[0]=255; /* to force error if no data was found */
+   png_ptr->t_row_buf[0]=255; /* to force error if no data was found */
    png_read_IDAT_data(png_ptr, png_ptr->row_buf, row_info.rowbytes + 1);
 
-   if (png_ptr->row_buf[0] > PNG_FILTER_VALUE_NONE)
+   if (png_ptr->t_row_buf[0] > PNG_FILTER_VALUE_NONE)
    {
-      if (png_ptr->row_buf[0] < PNG_FILTER_VALUE_LAST)
-         png_read_filter_row(png_ptr, &row_info, png_ptr->row_buf + 1,
-             png_ptr->prev_row + 1, png_ptr->row_buf[0]);
+      if (png_ptr->t_row_buf[0] < PNG_FILTER_VALUE_LAST)
+          t_png_read_filter_row(png_ptr, &row_info, png_ptr->t_row_buf + 1,
+             png_ptr->t_prev_row + 1, png_ptr->t_row_buf[0]);
       else
          png_error(png_ptr, "bad adaptive filter value");
    }
@@ -618,14 +618,14 @@ png_read_row(png_structrp png_ptr, png_bytep row, png_bytep dsp_row)
     * it may not be in the future, so this was changed just to copy the
     * interlaced count:
     */
-   memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
+   t_memcpy(png_ptr->t_prev_row, png_ptr->t_row_buf, row_info.rowbytes + 1);
 
 #ifdef PNG_MNG_FEATURES_SUPPORTED
    if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
        (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
    {
       /* Intrapixel differencing */
-      png_do_read_intrapixel(&row_info, png_ptr->row_buf + 1);
+       t_png_do_read_intrapixel(&row_info, png_ptr->t_row_buf + 1);
    }
 #endif
 
@@ -848,7 +848,7 @@ t_png_read_row(png_structrp png_ptr, t_png_bytep row, t_png_bytep dsp_row)
          t_png_read_filter_row(png_ptr, &row_info, png_ptr->t_row_buf + 1,
              png_ptr->t_prev_row + 1, png_ptr->t_row_buf[0]);
       else
-         png_error(png_ptr, "bad adaptive filter value");
+         png_error(png_ptr, "tainted bad adaptive filter value");
    }
 
    /* libpng 1.5.6: the following line was copying png_ptr->rowbytes before

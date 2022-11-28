@@ -19,7 +19,7 @@
 
 #include "pngpriv.h"
 #include <stdlib_tainted.h>
-
+#include <string_tainted.h>
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 /* Free a png_struct */
 void /* PRIVATE */

@@ -5037,9 +5037,6 @@ t_png_read_IDAT_data(png_structrp png_ptr, t_png_bytep output,
         else /* the deflate stream contained extra data */
             png_chunk_benign_error(png_ptr, "Too much image data");
     }
-    //SHADY
-//    output[0] = output_checked[0];
-//    t_memcpy(output, output_checked, avail_out);
 }
 void /* PRIVATE */
 png_read_IDAT_data(png_structrp png_ptr, png_bytep output,
