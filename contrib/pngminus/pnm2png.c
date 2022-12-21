@@ -187,9 +187,9 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
 {
   png_struct    *png_ptr = NULL;
   png_info      *info_ptr = NULL;
-  png_byte      *png_pixels = NULL;
-  png_byte      **row_pointers = NULL;
-  png_byte      *pix_ptr = NULL;
+  _TPtr<png_byte>      png_pixels = NULL;
+  _TPtr<_TPtr<png_byte>>      row_pointers = NULL;
+  _TPtr<png_byte>      pix_ptr = NULL;
   volatile png_uint_32 row_bytes;
 
   _TPtr<char>   type_token = NULL;
@@ -464,8 +464,8 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       t_free (maxval_token);
     return FALSE;
   }
-  if ((png_pixels = (png_byte *)
-       malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+  if ((png_pixels = (_TPtr<png_byte> )
+       t_malloc ((size_t) row_bytes * (size_t) height)) == NULL)
   {
     /* out of memory */
       t_free (type_token);
@@ -546,7 +546,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
                                      NULL, NULL, NULL);
   if (!png_ptr)
   {
-    free (png_pixels);
+    t_free (png_pixels);
       t_free (type_token);
       t_free (width_token);
       t_free (height_token);
@@ -557,7 +557,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   if (!info_ptr)
   {
     png_destroy_write_struct (&png_ptr, NULL);
-    free (png_pixels);
+    t_free (png_pixels);
       t_free (type_token);
       t_free (width_token);
       t_free (height_token);
@@ -576,7 +576,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   if (setjmp (png_jmpbuf (png_ptr)))
   {
     png_destroy_write_struct (&png_ptr, &info_ptr);
-    free (png_pixels);
+    t_free (png_pixels);
       t_free (type_token);
       t_free (width_token);
       t_free (height_token);
@@ -598,11 +598,11 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   /* if needed we will allocate memory for an new array of row-pointers */
   if (row_pointers == NULL)
   {
-    if ((row_pointers = (png_byte **)
-         malloc (height * sizeof (png_byte *))) == NULL)
+    if ((row_pointers = (_TPtr<_TPtr<png_byte>>)
+         t_malloc (height * sizeof (png_byte *))) == NULL)
     {
       png_destroy_write_struct (&png_ptr, &info_ptr);
-      free (png_pixels);
+      t_free (png_pixels);
         t_free (type_token);
         t_free (width_token);
         t_free (height_token);
@@ -616,7 +616,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     row_pointers[i] = png_pixels + i * row_bytes;
 
   /* write out the entire image data in one call */
-  png_write_image (png_ptr, row_pointers);
+  t_png_write_image (png_ptr, row_pointers);
 
   /* write the additional chunks to the PNG file (not really needed) */
   png_write_end (png_ptr, info_ptr);
@@ -625,9 +625,9 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   png_destroy_write_struct (&png_ptr, &info_ptr);
 
   if (row_pointers != NULL)
-    free (row_pointers);
+    t_free (row_pointers);
   if (png_pixels != NULL)
-    free (png_pixels);
+    t_free (png_pixels);
     t_free (type_token);
     t_free (width_token);
     t_free (height_token);

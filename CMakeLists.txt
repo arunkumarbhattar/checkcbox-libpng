@@ -27,7 +27,12 @@
 
 cmake_minimum_required(VERSION 3.1)
 cmake_policy(VERSION 3.1)
-set(CMAKE_C_COMPILER /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang) #ARUN_MACHINE_SPECIFIC --> path to Checkcbox compiler
+set(CMAKE_C_COMPILER /home/arun/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang) #ARUN_MACHINE_SPECIFIC --> path to Checkcbox compiler
+add_compile_options(-fw2c_sbx)
+add_link_options(-ldl -lstdc++)
+add_link_options("${CMAKE_SOURCE_DIR}/Checkcbox_LIBS/libSBX_CON_LIB.a"
+        "${CMAKE_SOURCE_DIR}/Checkcbox_LIBS/libisc_lib_final.a")
+
 project(libpng C ASM)
 enable_testing()
 
