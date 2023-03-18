@@ -147,7 +147,13 @@ PNG_FUNCTION(t_png_voidp /* PRIVATE */,
 
         else
 #endif
-            return t_malloc<png_voidp>((size_t)size); /* checked for truncation above */
+#ifdef HEAP_SBX
+            return hoard_malloc((size_t)size); /* checked for truncation above */
+#elif WASM_SBX
+            return t_malloc((size_t)size); /* checked for truncation above */
+#else
+            return malloc((size_t)size); /* checked for truncation above */
+#endif
     }
 
     else
@@ -321,7 +327,14 @@ PNG_FUNCTION(void,PNGAPI
         return;
 #endif /* USER_MEM */
 
+#ifdef WASM_SBX
     t_free(ptr);
+#elif HEAP_SBX
+    hoard_free(ptr);
+#else
+    free(ptr);
+#endif
+
 }
 
 void PNGAPI

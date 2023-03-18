@@ -965,7 +965,11 @@ png_compress_IDAT(png_structrp png_ptr, t_png_const_bytep input,
     * terminates the operation.  The _out values are maintained across calls to
     * this function, but the input must be reset each time.
     */
+#ifdef WASM_SBX
    png_ptr->zstream.next_in = (const Bytef *)PNGZ_INPUT_CAST(c_fetch_pointer_from_offset((int)input));
+#else
+    png_ptr->zstream.next_in = (const Bytef *)PNGZ_INPUT_CAST(input);
+#endif
    png_ptr->zstream.avail_in = 0; /* set below */
    for (;;)
    {

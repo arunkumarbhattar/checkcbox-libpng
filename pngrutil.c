@@ -4397,7 +4397,13 @@ t_png_do_read_interlace(png_row_infop row_info, t_png_bytep row, int pass,
                 for (i = 0; i < row_info->width; i++)
                 {
                     _TPtr<png_byte> v = NULL; /* SAFE; pixel_depth does not exceed 64 */
+#ifdef WASM_SBX
                     v = (_TPtr<png_byte>)t_malloc<png_byte>(8);
+#elif HEAP_SBX
+                    v = (_TPtr<png_byte>)hoard_malloc<png_byte>(8);
+#else
+                    v = (_TPtr<png_byte>)malloc<png_byte>(8);
+#endif
                     int j;
 
                     t_memcpy(v, sp, pixel_bytes);
@@ -4898,7 +4904,11 @@ t_png_read_filter_row(png_structrp pp, png_row_infop row_info, t_png_bytep row,
         if (pp->read_filter[0] == NULL)
             png_init_filter_functions(pp);
 
+#ifdef WASM_SBX
         pp->read_filter[filter-1](row_info, (png_bytep)c_fetch_pointer_from_offset((int)row), (png_bytep)c_fetch_pointer_from_offset((int)prev_row));
+#else
+        pp->read_filter[filter-1](row_info, (png_bytep)row, (png_bytep)prev_row);
+#endif
     }
 }
 
@@ -4912,7 +4922,11 @@ t_png_read_IDAT_data(png_structrp png_ptr, t_png_bytep output,
 //    png_bytep output_checked = png_calloc(png_ptr, avail_out);
 //    t_memcpy(output_checked, output, avail_out);
 //    png_ptr->zstream.next_out = output_checked;
+#ifdef WASM_SBX
     png_ptr->zstream.next_out = (png_bytep)c_fetch_pointer_from_offset((int)output);
+#else
+    png_ptr->zstream.next_out = (png_bytep)output;
+#endif
     png_ptr->zstream.avail_out = 0; /* safety: set below */
 
     if (output == NULL)

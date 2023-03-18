@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdlib_tainted.h>
+#include <checkcbox_extensions.h>
 #include <time.h>
 
 #ifndef BOOL
@@ -301,17 +302,36 @@ BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
     return FALSE;
   }
   if ((png_pixels = (_TPtr<png_byte> )
+#ifdef WASM_SBX
        t_malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#elif HEAP_SBX
+       hoard_malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#else
+       malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#endif
   {
     png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
     return FALSE;
   }
 
   if ((row_pointers = (_TPtr<_TPtr<png_byte>>)
+#ifdef WASM_SBX
        t_malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#elif HEAP_SBX
+       hoard_malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#else
+       malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#endif
   {
     png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
+#ifdef WASM_SBX
     t_free (png_pixels);
+#elif HEAP_SBX
+    hoard_free (png_pixels);
+#else
+    free (png_pixels);
+#endif
+
     return FALSE;
   }
 
@@ -422,9 +442,22 @@ BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
   } /* end for row */
 
   if (row_pointers != NULL)
+#ifdef WASM_SBX
     t_free (row_pointers);
+#elif HEAP_SBX
+    hoard_free (row_pointers);
+#else
+    free (row_pointers);
+#endif
+
   if (png_pixels != NULL)
+#ifdef WASM_SBX
     t_free (png_pixels);
+#elif HEAP_SBX
+    hoard_free (png_pixels);
+#else
+    free (png_pixels);
+#endif
 
   t = clock() -t;
   double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
