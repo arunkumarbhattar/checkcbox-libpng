@@ -1547,7 +1547,7 @@ png_set_read_user_chunk_fn(png_structrp png_ptr, png_voidp user_chunk_ptr,
 #ifdef PNG_INFO_IMAGE_SUPPORTED
 void PNGAPI
 png_set_rows(png_const_structrp png_ptr, png_inforp info_ptr,
-    png_bytepp row_pointers)
+    t_png_bytepp row_pointers)
 {
    png_debug1(1, "in %s storage function", "rows");
 

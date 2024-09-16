@@ -36,7 +36,7 @@ png_get_rowbytes(png_const_structrp png_ptr, png_const_inforp info_ptr)
 }
 
 #ifdef PNG_INFO_IMAGE_SUPPORTED
-png_bytepp PNGAPI
+t_png_bytepp PNGAPI
 png_get_rows(png_const_structrp png_ptr, png_const_inforp info_ptr)
 {
    if (png_ptr != NULL && info_ptr != NULL)

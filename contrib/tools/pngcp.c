@@ -71,7 +71,7 @@
 #include <assert.h>
 
 #include <unistd.h>
-#include <sys/stat.h>
+#include "/usr/include/x86_64-linux-gnu/sys/stat.h"
 
 #include <zlib.h>
 

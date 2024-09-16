@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdlib_tainted.h>
+#include <checkcbox_extensions.h>
+#include <time.h>
 
 #ifndef BOOL
 #define BOOL unsigned char
@@ -163,12 +166,14 @@ void usage ()
 BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
               BOOL raw, BOOL alpha)
 {
+  clock_t t;
+  t = clock(); //start time
   png_struct    *png_ptr = NULL;
   png_info      *info_ptr = NULL;
   png_byte      buf[8];
-  png_byte      *png_pixels = NULL;
-  png_byte      **row_pointers = NULL;
-  png_byte      *pix_ptr = NULL;
+  _TPtr<png_byte>      png_pixels = NULL;
+  _TPtr<_TPtr<png_byte>>      row_pointers = NULL;
+  _TPtr<png_byte>      pix_ptr = NULL;
   png_uint_32   row_bytes;
 
   png_uint_32   width;
@@ -296,18 +301,37 @@ BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
     png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
     return FALSE;
   }
-  if ((png_pixels = (png_byte *)
+  if ((png_pixels = (_TPtr<png_byte> )
+#ifdef WASM_SBX
+       t_malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#elif HEAP_SBX
+       hoard_malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#else
        malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+#endif
   {
     png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
     return FALSE;
   }
 
-  if ((row_pointers = (png_byte **)
-       malloc ((size_t) height * sizeof (png_byte *))) == NULL)
+  if ((row_pointers = (_TPtr<_TPtr<png_byte>>)
+#ifdef WASM_SBX
+       t_malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#elif HEAP_SBX
+       hoard_malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#else
+       malloc ((size_t) height * sizeof (_TPtr<png_byte>))) == NULL)
+#endif
   {
     png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
+#ifdef WASM_SBX
+    t_free (png_pixels);
+#elif HEAP_SBX
+    hoard_free (png_pixels);
+#else
     free (png_pixels);
+#endif
+
     return FALSE;
   }
 
@@ -316,7 +340,7 @@ BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
     row_pointers[i] = png_pixels + i * row_bytes;
 
   /* now we can go ahead and just read the whole image */
-  png_read_image (png_ptr, row_pointers);
+  t_png_read_image (png_ptr, row_pointers);
 
   /* read rest of file, and get additional chunks in info_ptr - REQUIRED */
   png_read_end (png_ptr, info_ptr);
@@ -418,10 +442,26 @@ BOOL png2pnm (FILE *png_file, FILE *pnm_file, FILE *alpha_file,
   } /* end for row */
 
   if (row_pointers != NULL)
+#ifdef WASM_SBX
+    t_free (row_pointers);
+#elif HEAP_SBX
+    hoard_free (row_pointers);
+#else
     free (row_pointers);
-  if (png_pixels != NULL)
-    free (png_pixels);
+#endif
 
+  if (png_pixels != NULL)
+#ifdef WASM_SBX
+    t_free (png_pixels);
+#elif HEAP_SBX
+    hoard_free (png_pixels);
+#else
+    free (png_pixels);
+#endif
+
+  t = clock() -t;
+  double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
+    printf("png2pnm took %f seconds to execute \n", time_taken);
   return TRUE;
 
 } /* end of source */

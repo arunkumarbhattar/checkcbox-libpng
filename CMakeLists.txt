@@ -27,7 +27,13 @@
 
 cmake_minimum_required(VERSION 3.1)
 cmake_policy(VERSION 3.1)
-set(CMAKE_C_COMPILER /home/twinturbo/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang) #ARUN_MACHINE_SPECIFIC --> path to Checkcbox compiler
+set(CMAKE_C_COMPILER /home/arun/Desktop/CheckCBox_Compiler/llvm/cmake-build-debug/bin/clang) #ARUN_MACHINE_SPECIFIC --> path to Checkcbox compiler
+add_compile_options(-fnoopsbx)
+add_link_options(-ldl -lstdc++)
+add_link_options("${CMAKE_SOURCE_DIR}/NOOP_SBX/libSBX_CON_LIB.a"
+        #"${CMAKE_SOURCE_DIR}/Checkcbox_LIBS/libisc_lib_final.a"
+        )
+
 project(libpng C ASM)
 enable_testing()
 
@@ -611,6 +617,8 @@ if(PNG_STATIC)
   # does not work without changing name
   set(PNG_LIB_NAME_STATIC png_static)
   add_library(png_static STATIC ${libpng_sources})
+  #target_compile_options(png_static PRIVATE -fwasmsbx -DWASM_SBX)
+  target_compile_options(png_static PRIVATE -fheapsbx -DHEAP_SBX)
   add_dependencies(png_static genfiles)
   # MSVC doesn't use a different file extension for shared vs. static
   # libs. We are able to change OUTPUT_NAME to remove the _static
@@ -836,7 +844,13 @@ if(PNG_TESTS AND PNG_SHARED)
                OPTIONS --strict vpAg=if-safe
                FILES "${PNGTEST_PNG}")
 
+  add_link_options(-ldl -lstdc++ -g )
   add_executable(pngimage ${pngimage_sources})
+  target_compile_options(pngimage PRIVATE -g -ferror-limit=92385493 -fsanitize=address ) # CheckCBox requirement TESTING --> To track heap/stack overflows and leaks
+  target_link_options(pngimage PRIVATE -g  -fsanitize=address -static-libsan)
+  target_link_libraries(pngimage "${CMAKE_SOURCE_DIR}/CheckCBoxLibs/libSBX_CON_LIB.a"
+          "${CMAKE_SOURCE_DIR}/CheckCBoxLibs/libisc_lib_final.a"
+          dl)
   target_link_libraries(pngimage png)
 
   png_add_test(NAME pngimage-quick

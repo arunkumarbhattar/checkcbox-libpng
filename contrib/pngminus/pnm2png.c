@@ -30,6 +30,24 @@
 
 #include "png.h"
 
+#ifdef WASM_SBX
+#define _free_(x) t_free(x)
+#define _malloc(x) t_malloc(x)
+#define _calloc(x,y) t_calloc(x,y)
+#define _realloc(x,y) t_realloc(x,y)
+#elif HEAP_SBX
+#define _free_(x) hoard_free(x)
+#define _malloc(x) hoard_malloc(x)
+#define _calloc(x,y) hoard_calloc(x,y)
+#define _realloc(x,y) hoard_realloc(x,y)
+#else
+#define _free_(x) free(x)
+#define _malloc(x) malloc(x)
+#define _calloc(x,y) calloc(x,y)
+#define _realloc(x,y) realloc(x,y)
+
+#endif
+
 /* function prototypes */
 
 /*
@@ -187,9 +205,9 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
 {
   png_struct    *png_ptr = NULL;
   png_info      *info_ptr = NULL;
-  png_byte      *png_pixels = NULL;
-  png_byte      **row_pointers = NULL;
-  png_byte      *pix_ptr = NULL;
+  _TPtr<png_byte>      png_pixels = NULL;
+  _TPtr<_TPtr<png_byte>>      row_pointers = NULL;
+  _TPtr<png_byte>      pix_ptr = NULL;
   volatile png_uint_32 row_bytes;
 
   _TPtr<char>   type_token = NULL;
@@ -227,10 +245,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   get_token (pnm_file, type_token);
   if (type_token[0] != 'P')
   {
-      t_free (type_token);
-      //t_free (width_token); // WASM does lazy malloc and freeing without putting soem data into it will result in a WASM crash
-//      t_free (height_token);
-//      t_free (maxval_token);
+    _free_ (type_token);
     return FALSE;
   }
   else if ((type_token[1] == '1') || (type_token[1] == '4'))
@@ -251,10 +266,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
 #else
     fprintf (stderr, "PNM2PNG built without PNG_WRITE_INVERT_SUPPORTED and\n");
     fprintf (stderr, "PNG_WRITE_PACK_SUPPORTED can't read PBM (P1,P4) files\n");
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
     return FALSE;
 #endif
   }
@@ -287,10 +302,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       bit_depth = 16;
     else /* maxval > 65535U */
     {
-        t_free (type_token);
-        t_free (width_token);
-        t_free (height_token);
-        t_free (maxval_token);
+        _free_ (type_token);
+        _free_ (width_token);
+        _free_ (height_token);
+        _free_ (maxval_token);
         return FALSE;
     }
   }
@@ -322,19 +337,19 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       bit_depth = 16;
     else /* maxval > 65535U */
     {
-        t_free (type_token);
-        t_free (width_token);
-        t_free (height_token);
-        t_free (maxval_token);
+        _free_ (type_token);
+        _free_ (width_token);
+        _free_ (height_token);
+        _free_ (maxval_token);
         return FALSE;
     }
   }
   else
   {
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
     return FALSE;
   }
 
@@ -351,10 +366,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     get_token (alpha_file, type_token);// @BUFFER_OVERFLOW
     if (type_token[0] != 'P')
     {
-        t_free (type_token);
-        t_free (width_token);
-        t_free (height_token);
-        t_free (maxval_token);
+        _free_ (type_token);
+        _free_ (width_token);
+        _free_ (height_token);
+        _free_ (maxval_token);
       return FALSE;
     }
     else if ((type_token[1] == '2') || (type_token[1] == '5'))
@@ -366,10 +381,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       alpha_width = (png_uint_32) ul_alpha_width;
       if (alpha_width != width)
       {
-          t_free (type_token);
-          t_free (width_token);
-          t_free (height_token);
-          t_free (maxval_token);
+          _free_ (type_token);
+          _free_ (width_token);
+          _free_ (height_token);
+          _free_ (maxval_token);
           return FALSE;
       }
       //get_token (alpha_file, height_token, sizeof (height_token));    @BUFFER_OVERFLOW_FIX
@@ -378,10 +393,10 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       alpha_height = (png_uint_32) ul_alpha_height;
       if (alpha_height != height)
       {
-          t_free (type_token);
-          t_free (width_token);
-          t_free (height_token);
-          t_free (maxval_token);
+          _free_ (type_token);
+          _free_ (width_token);
+          _free_ (height_token);
+          _free_ (maxval_token);
           return FALSE;
       }
       //get_token (alpha_file, maxval_token, sizeof (maxval_token)); @BUFFER_OVERFLOW_FIX
@@ -400,27 +415,27 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
         alpha_depth = 16;
       else /* maxval > 65535U */
       {
-          t_free (type_token);
-          t_free (width_token);
-          t_free (height_token);
-          t_free (maxval_token);
+          _free_ (type_token);
+          _free_ (width_token);
+          _free_ (height_token);
+          _free_ (maxval_token);
           return FALSE;
       }
       if (alpha_depth != bit_depth)
       {
-          t_free (type_token);
-          t_free (width_token);
-          t_free (height_token);
-          t_free (maxval_token);
+          _free_ (type_token);
+          _free_ (width_token);
+          _free_ (height_token);
+          _free_ (maxval_token);
           return FALSE;
       }
     }
     else
     {
-        t_free (type_token);
-        t_free (width_token);
-        t_free (height_token);
-        t_free (maxval_token);
+        _free_ (type_token);
+        _free_ (width_token);
+        _free_ (height_token);
+        _free_ (maxval_token);
       return FALSE;
     }
   } /* end if alpha */
@@ -458,20 +473,20 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
       ((size_t) height > (size_t) (-1) / (size_t) row_bytes))
   {
     /* too big */
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
     return FALSE;
   }
-  if ((png_pixels = (png_byte *)
-       malloc ((size_t) row_bytes * (size_t) height)) == NULL)
+  if ((png_pixels = (_TPtr<png_byte> )
+       _malloc ((size_t) row_bytes * (size_t) height)) == NULL)
   {
     /* out of memory */
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
     return FALSE;
   }
 
@@ -546,22 +561,23 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
                                      NULL, NULL, NULL);
   if (!png_ptr)
   {
-    free (png_pixels);
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+    _free_ (png_pixels);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
     return FALSE;
   }
   info_ptr = png_create_info_struct (png_ptr);
   if (!info_ptr)
   {
     png_destroy_write_struct (&png_ptr, NULL);
-    free (png_pixels);
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (png_pixels);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
+
     return FALSE;
   }
 
@@ -576,11 +592,12 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   if (setjmp (png_jmpbuf (png_ptr)))
   {
     png_destroy_write_struct (&png_ptr, &info_ptr);
-    free (png_pixels);
-      t_free (type_token);
-      t_free (width_token);
-      t_free (height_token);
-      t_free (maxval_token);
+      _free_ (png_pixels);
+      _free_ (type_token);
+      _free_ (width_token);
+      _free_ (height_token);
+      _free_ (maxval_token);
+
     return FALSE;
   }
 
@@ -598,15 +615,16 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   /* if needed we will allocate memory for an new array of row-pointers */
   if (row_pointers == NULL)
   {
-    if ((row_pointers = (png_byte **)
-         malloc (height * sizeof (png_byte *))) == NULL)
+    if ((row_pointers = (_TPtr<_TPtr<png_byte>>)
+         _malloc (height * sizeof (png_byte *))) == NULL)
     {
       png_destroy_write_struct (&png_ptr, &info_ptr);
-      free (png_pixels);
-        t_free (type_token);
-        t_free (width_token);
-        t_free (height_token);
-        t_free (maxval_token);
+        _free_ (png_pixels);
+        _free_ (type_token);
+        _free_ (width_token);
+        _free_ (height_token);
+        _free_ (maxval_token);
+
       return FALSE;
     }
   }
@@ -616,7 +634,7 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
     row_pointers[i] = png_pixels + i * row_bytes;
 
   /* write out the entire image data in one call */
-  png_write_image (png_ptr, row_pointers);
+  t_png_write_image (png_ptr, row_pointers);
 
   /* write the additional chunks to the PNG file (not really needed) */
   png_write_end (png_ptr, info_ptr);
@@ -625,13 +643,17 @@ BOOL pnm2png (FILE *pnm_file, FILE *png_file, FILE *alpha_file,
   png_destroy_write_struct (&png_ptr, &info_ptr);
 
   if (row_pointers != NULL)
-    free (row_pointers);
+    _free_ (row_pointers);
+
   if (png_pixels != NULL)
-    free (png_pixels);
-    t_free (type_token);
-    t_free (width_token);
-    t_free (height_token);
-    t_free (maxval_token);
+    _free_ (png_pixels);
+
+    _free_ (type_token);
+    _free_ (width_token);
+    _free_ (height_token);
+    _free_ (maxval_token);
+
+
   return TRUE;
 } /* end of pnm2png */
 
@@ -756,6 +778,7 @@ png_uint_32 get_value (FILE *pnm_file, int depth)
     for (i = 0; i < (8 / depth); i++)
       ret_value = (ret_value << depth) || ret_value;
 
+  _free_(GlobalTaintedAdaptorStr);
   return ret_value;
 }
 

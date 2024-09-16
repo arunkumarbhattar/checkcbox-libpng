@@ -18,7 +18,8 @@
  */
 
 #include "pngpriv.h"
-
+#include <stdlib_tainted.h>
+#include <string_tainted.h>
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 /* Free a png_struct */
 void /* PRIVATE */
@@ -59,6 +60,20 @@ png_calloc,(png_const_structrp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
    return ret;
 }
 
+PNG_FUNCTION(t_png_voidp,PNGAPI
+        t_png_calloc,(png_const_structrp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
+{
+    t_png_voidp ret = NULL;
+
+    ret = t_png_malloc(png_ptr, size);
+
+    if (ret != NULL)
+        t_memset(ret, 0, size);
+
+    return ret;
+}
+
+
 /* png_malloc_base, an internal function added at libpng 1.6.0, does the work of
  * allocating memory, taking into account limits and PNG_USER_MEM_SUPPORTED.
  * Checking and error handling must happen outside this routine; it returns NULL
@@ -98,6 +113,53 @@ png_malloc_base,(png_const_structrp png_ptr, png_alloc_size_t size),
    else
       return NULL;
 }
+
+/* t_png_malloc_base, an internal function added at libpng 1.6.0, does the work of
+ * allocating Tainted memory, taking into account limits and PNG_USER_MEM_SUPPORTED.
+ * Checking and error handling must happen outside this routine; it returns NULL
+ * if the allocation cannot be done (for any reason.)
+ */
+PNG_FUNCTION(t_png_voidp /* PRIVATE */,
+             t_png_malloc_base,(png_const_structrp png_ptr, png_alloc_size_t size),
+             PNG_ALLOCATED)
+{
+    /* Moved to png_malloc_base from png_malloc_default in 1.6.0; the DOS
+     * allocators have also been removed in 1.6.0, so any 16-bit system now has
+     * to implement a user memory handler.  This checks to be sure it isn't
+     * called with big numbers.
+     */
+#ifndef PNG_USER_MEM_SUPPORTED
+    PNG_UNUSED(png_ptr)
+#endif
+
+    /* Some compilers complain that this is always true.  However, it
+     * can be false when integer overflow happens.
+     */
+    if (size > 0 && size <= PNG_SIZE_MAX
+#     ifdef PNG_MAX_MALLOC_64K
+        && size <= 65536U
+#     endif
+            )
+    {
+#ifdef PNG_USER_MEM_SUPPORTED
+        if (png_ptr != NULL && png_ptr->malloc_fn != NULL)
+            return png_ptr->t_malloc_fn(png_constcast(png_structrp,png_ptr), size);
+
+        else
+#endif
+#ifdef HEAP_SBX
+            return hoard_malloc((size_t)size); /* checked for truncation above */
+#elif WASM_SBX
+            return t_malloc((size_t)size); /* checked for truncation above */
+#else
+            return malloc((size_t)size); /* checked for truncation above */
+#endif
+    }
+
+    else
+        return NULL;
+}
+
 
 #if defined(PNG_TEXT_SUPPORTED) || defined(PNG_sPLT_SUPPORTED) ||\
    defined(PNG_STORE_UNKNOWN_CHUNKS_SUPPORTED)
@@ -184,6 +246,22 @@ png_malloc,(png_const_structrp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
    return ret;
 }
 
+PNG_FUNCTION(t_png_voidp,PNGAPI
+        t_png_malloc,(png_const_structrp png_ptr, png_alloc_size_t size),PNG_ALLOCATED)
+{
+    t_png_voidp ret = NULL;
+
+    if (png_ptr == NULL)
+        return NULL;
+
+    ret = t_png_malloc_base(png_ptr, size);
+
+    if (ret == NULL)
+        png_error(png_ptr, "Out of memory"); /* 'm' means png_malloc */
+
+    return ret;
+}
+
 #ifdef PNG_USER_MEM_SUPPORTED
 PNG_FUNCTION(png_voidp,PNGAPI
 png_malloc_default,(png_const_structrp png_ptr, png_alloc_size_t size),
@@ -243,6 +321,37 @@ png_free(png_const_structrp png_ptr, png_voidp ptr)
 }
 
 PNG_FUNCTION(void,PNGAPI
+        t_png_free_default,(png_const_structrp png_ptr, t_png_voidp ptr),PNG_DEPRECATED)
+{
+    if (png_ptr == NULL || ptr == NULL)
+        return;
+#endif /* USER_MEM */
+
+#ifdef WASM_SBX
+    t_free(ptr);
+#elif HEAP_SBX
+    hoard_free(ptr);
+#else
+    free(ptr);
+#endif
+
+}
+
+void PNGAPI
+t_png_free(png_const_structrp png_ptr, t_png_voidp ptr)
+{
+    if (png_ptr == NULL || ptr == NULL)
+        return;
+
+#ifdef PNG_USER_MEM_SUPPORTED
+    if (png_ptr->t_free_fn != NULL)
+        png_ptr->t_free_fn(png_constcast(png_structrp,png_ptr), ptr);
+
+    else
+        t_png_free_default(png_ptr, ptr);
+}
+
+PNG_FUNCTION(void,PNGAPI
 png_free_default,(png_const_structrp png_ptr, png_voidp ptr),PNG_DEPRECATED)
 {
    if (png_ptr == NULL || ptr == NULL)
@@ -251,6 +360,7 @@ png_free_default,(png_const_structrp png_ptr, png_voidp ptr),PNG_DEPRECATED)
 
    free(ptr);
 }
+
 
 #ifdef PNG_USER_MEM_SUPPORTED
 /* This function is called when the application wants to use another method

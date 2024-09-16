@@ -210,7 +210,7 @@ write_row_callback(png_structp png_ptr, png_uint_32 row_number, int pass)
 /* Example of using a user transform callback (doesn't do anything at present).
  */
 static void PNGCBAPI
-read_user_callback(png_structp png_ptr, png_row_infop row_info, png_bytep data)
+read_user_callback(png_structp png_ptr, png_row_infop row_info, t_png_bytep data)
 {
    PNG_UNUSED(png_ptr)
    PNG_UNUSED(row_info)
@@ -226,9 +226,9 @@ read_user_callback(png_structp png_ptr, png_row_infop row_info, png_bytep data)
 static png_uint_32 zero_samples;
 
 static void PNGCBAPI
-count_zero_samples(png_structp png_ptr, png_row_infop row_info, png_bytep data)
+count_zero_samples(png_structp png_ptr, png_row_infop row_info, t_png_bytep data)
 {
-   png_bytep dp = data;
+   t_png_bytep dp = data;
    if (png_ptr == NULL)
       return;
 

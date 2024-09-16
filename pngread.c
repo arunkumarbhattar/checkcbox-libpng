@@ -13,7 +13,8 @@
  * This file contains routines that an application calls directly to
  * read a PNG file or stream.
  */
-
+#include <string_tainted.h>
+#include <stdlib_tainted.h>
 #include "pngpriv.h"
 #if defined(PNG_SIMPLIFIED_READ_SUPPORTED) && defined(PNG_STDIO_SUPPORTED)
 #  include <errno.h>
@@ -318,6 +319,67 @@ png_start_read_image(png_structrp png_ptr)
  * NOTE: this is apparently only supported in the 'sequential' reader.
  */
 static void
+t_png_do_read_intrapixel(png_row_infop row_info, t_png_bytep row)
+{
+    png_debug(1, "in t_png_do_read_intrapixel");
+
+    if (
+            (row_info->color_type & PNG_COLOR_MASK_COLOR) != 0)
+    {
+        int bytes_per_pixel;
+        png_uint_32 row_width = row_info->width;
+
+        if (row_info->bit_depth == 8)
+        {
+            t_png_bytep rp = NULL;
+            png_uint_32 i;
+
+            if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+                bytes_per_pixel = 3;
+
+            else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+                bytes_per_pixel = 4;
+
+            else
+                return;
+
+            for (i = 0, rp = row; i < row_width; i++, rp += bytes_per_pixel)
+            {
+                *(rp) = (png_byte)((256 + *rp + *(rp + 1)) & 0xff);
+                *(rp+2) = (png_byte)((256 + *(rp + 2) + *(rp + 1)) & 0xff);
+            }
+        }
+        else if (row_info->bit_depth == 16)
+        {
+            t_png_bytep rp = NULL;
+            png_uint_32 i;
+
+            if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+                bytes_per_pixel = 6;
+
+            else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+                bytes_per_pixel = 8;
+
+            else
+                return;
+
+            for (i = 0, rp = row; i < row_width; i++, rp += bytes_per_pixel)
+            {
+                png_uint_32 s0   = (png_uint_32)(*(rp    ) << 8) | *(rp + 1);
+                png_uint_32 s1   = (png_uint_32)(*(rp + 2) << 8) | *(rp + 3);
+                png_uint_32 s2   = (png_uint_32)(*(rp + 4) << 8) | *(rp + 5);
+                png_uint_32 red  = (s0 + s1 + 65536) & 0xffff;
+                png_uint_32 blue = (s2 + s1 + 65536) & 0xffff;
+                *(rp    ) = (png_byte)((red >> 8) & 0xff);
+                *(rp + 1) = (png_byte)(red & 0xff);
+                *(rp + 4) = (png_byte)((blue >> 8) & 0xff);
+                *(rp + 5) = (png_byte)(blue & 0xff);
+            }
+        }
+    }
+}
+
+static void
 png_do_read_intrapixel(png_row_infop row_info, png_bytep row)
 {
    png_debug(1, "in png_do_read_intrapixel");
@@ -539,14 +601,14 @@ png_read_row(png_structrp png_ptr, png_bytep row, png_bytep dsp_row)
       png_error(png_ptr, "Invalid attempt to read row data");
 
    /* Fill the row with IDAT data: */
-   png_ptr->row_buf[0]=255; /* to force error if no data was found */
+   png_ptr->t_row_buf[0]=255; /* to force error if no data was found */
    png_read_IDAT_data(png_ptr, png_ptr->row_buf, row_info.rowbytes + 1);
 
-   if (png_ptr->row_buf[0] > PNG_FILTER_VALUE_NONE)
+   if (png_ptr->t_row_buf[0] > PNG_FILTER_VALUE_NONE)
    {
-      if (png_ptr->row_buf[0] < PNG_FILTER_VALUE_LAST)
-         png_read_filter_row(png_ptr, &row_info, png_ptr->row_buf + 1,
-             png_ptr->prev_row + 1, png_ptr->row_buf[0]);
+      if (png_ptr->t_row_buf[0] < PNG_FILTER_VALUE_LAST)
+          t_png_read_filter_row(png_ptr, &row_info, png_ptr->t_row_buf + 1,
+             png_ptr->t_prev_row + 1, png_ptr->t_row_buf[0]);
       else
          png_error(png_ptr, "bad adaptive filter value");
    }
@@ -556,14 +618,14 @@ png_read_row(png_structrp png_ptr, png_bytep row, png_bytep dsp_row)
     * it may not be in the future, so this was changed just to copy the
     * interlaced count:
     */
-   memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
+   t_memcpy(png_ptr->t_prev_row, png_ptr->t_row_buf, row_info.rowbytes + 1);
 
 #ifdef PNG_MNG_FEATURES_SUPPORTED
    if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
        (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
    {
       /* Intrapixel differencing */
-      png_do_read_intrapixel(&row_info, png_ptr->row_buf + 1);
+       t_png_do_read_intrapixel(&row_info, png_ptr->t_row_buf + 1);
    }
 #endif
 
@@ -607,6 +669,244 @@ png_read_row(png_structrp png_ptr, png_bytep row, png_bytep dsp_row)
 
       if (dsp_row != NULL)
          png_combine_row(png_ptr, dsp_row, -1/*ignored*/);
+   }
+   png_read_finish_row(png_ptr);
+
+   if (png_ptr->read_row_fn != NULL)
+      (*(png_ptr->read_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
+
+}
+void PNGAPI
+t_png_read_row(png_structrp png_ptr, t_png_bytep row, t_png_bytep dsp_row)
+{
+   png_row_info row_info;
+
+   if (png_ptr == NULL)
+      return;
+
+   png_debug2(1, "in png_read_row (row %lu, pass %d)",
+       (unsigned long)png_ptr->row_number, png_ptr->pass);
+
+   /* png_read_start_row sets the information (in particular iwidth) for this
+    * interlace pass.
+    */
+   if ((png_ptr->flags & PNG_FLAG_ROW_INIT) == 0)
+      png_read_start_row(png_ptr);
+
+   /* 1.5.6: row_info moved out of png_struct to a local here. */
+   row_info.width = png_ptr->iwidth; /* NOTE: width of current interlaced row */
+   row_info.color_type = png_ptr->color_type;
+   row_info.bit_depth = png_ptr->bit_depth;
+   row_info.channels = png_ptr->channels;
+   row_info.pixel_depth = png_ptr->pixel_depth;
+   row_info.rowbytes = PNG_ROWBYTES(row_info.pixel_depth, row_info.width);
+
+#ifdef PNG_WARNINGS_SUPPORTED
+   if (png_ptr->row_number == 0 && png_ptr->pass == 0)
+   {
+   /* Check for transforms that have been set but were defined out */
+#if defined(PNG_WRITE_INVERT_SUPPORTED) && !defined(PNG_READ_INVERT_SUPPORTED)
+   if ((png_ptr->transformations & PNG_INVERT_MONO) != 0)
+      png_warning(png_ptr, "PNG_READ_INVERT_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_FILLER_SUPPORTED) && !defined(PNG_READ_FILLER_SUPPORTED)
+   if ((png_ptr->transformations & PNG_FILLER) != 0)
+      png_warning(png_ptr, "PNG_READ_FILLER_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_PACKSWAP_SUPPORTED) && \
+    !defined(PNG_READ_PACKSWAP_SUPPORTED)
+   if ((png_ptr->transformations & PNG_PACKSWAP) != 0)
+      png_warning(png_ptr, "PNG_READ_PACKSWAP_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_PACK_SUPPORTED) && !defined(PNG_READ_PACK_SUPPORTED)
+   if ((png_ptr->transformations & PNG_PACK) != 0)
+      png_warning(png_ptr, "PNG_READ_PACK_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_SHIFT_SUPPORTED) && !defined(PNG_READ_SHIFT_SUPPORTED)
+   if ((png_ptr->transformations & PNG_SHIFT) != 0)
+      png_warning(png_ptr, "PNG_READ_SHIFT_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_BGR_SUPPORTED) && !defined(PNG_READ_BGR_SUPPORTED)
+   if ((png_ptr->transformations & PNG_BGR) != 0)
+      png_warning(png_ptr, "PNG_READ_BGR_SUPPORTED is not defined");
+#endif
+
+#if defined(PNG_WRITE_SWAP_SUPPORTED) && !defined(PNG_READ_SWAP_SUPPORTED)
+   if ((png_ptr->transformations & PNG_SWAP_BYTES) != 0)
+      png_warning(png_ptr, "PNG_READ_SWAP_SUPPORTED is not defined");
+#endif
+   }
+#endif /* WARNINGS */
+
+#ifdef PNG_READ_INTERLACING_SUPPORTED
+   /* If interlaced and we do not need a new row, combine row and return.
+    * Notice that the pixels we have from previous rows have been transformed
+    * already; we can only combine like with like (transformed or
+    * untransformed) and, because of the libpng API for interlaced images, this
+    * means we must transform before de-interlacing.
+    */
+   if (png_ptr->interlaced != 0 &&
+       (png_ptr->transformations & PNG_INTERLACE) != 0)
+   {
+      switch (png_ptr->pass)
+      {
+         case 0:
+            if (png_ptr->row_number & 0x07)
+            {
+               if (dsp_row != NULL)
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 1:
+            if ((png_ptr->row_number & 0x07) || png_ptr->width < 5)
+            {
+               if (dsp_row != NULL)
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 2:
+            if ((png_ptr->row_number & 0x07) != 4)
+            {
+               if (dsp_row != NULL && (png_ptr->row_number & 4))
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 3:
+            if ((png_ptr->row_number & 3) || png_ptr->width < 3)
+            {
+               if (dsp_row != NULL)
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 4:
+            if ((png_ptr->row_number & 3) != 2)
+            {
+               if (dsp_row != NULL && (png_ptr->row_number & 2))
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         case 5:
+            if ((png_ptr->row_number & 1) || png_ptr->width < 2)
+            {
+               if (dsp_row != NULL)
+                  t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+
+         default:
+         case 6:
+            if ((png_ptr->row_number & 1) == 0)
+            {
+               png_read_finish_row(png_ptr);
+               return;
+            }
+            break;
+      }
+   }
+#endif
+
+   if ((png_ptr->mode & PNG_HAVE_IDAT) == 0)
+      png_error(png_ptr, "Invalid attempt to read row data");
+
+   /* Fill the row with IDAT data: */
+   //SHADY: YOU SHOULD NOT BE DOING MALLOC HERE --> ORIGINAL CODE DIDNT DO ANY MALLOC
+//   png_ptr->t_row_buf= (t_png_bytep)t_malloc<t_png_bytep>(row_info.rowbytes + 1);
+//   png_ptr->t_prev_row= (t_png_bytep)t_malloc<t_png_bytep>(row_info.rowbytes + 1);
+   png_ptr->t_row_buf[0]=255; /* to force error if no data was found */
+   t_png_read_IDAT_data(png_ptr, png_ptr->t_row_buf, row_info.rowbytes + 1);
+
+   if (png_ptr->t_row_buf[0] > PNG_FILTER_VALUE_NONE)
+   {
+      if (png_ptr->t_row_buf[0] < PNG_FILTER_VALUE_LAST)
+         t_png_read_filter_row(png_ptr, &row_info, png_ptr->t_row_buf + 1,
+             png_ptr->t_prev_row + 1, png_ptr->t_row_buf[0]);
+      else
+         png_error(png_ptr, "tainted bad adaptive filter value");
+   }
+
+   /* libpng 1.5.6: the following line was copying png_ptr->rowbytes before
+    * 1.5.6, while the buffer really is this big in current versions of libpng
+    * it may not be in the future, so this was changed just to copy the
+    * interlaced count:
+    */
+   t_memcpy(png_ptr->t_prev_row, png_ptr->t_row_buf, row_info.rowbytes + 1);
+
+#ifdef PNG_MNG_FEATURES_SUPPORTED
+   if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
+       (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
+   {
+      /* Intrapixel differencing */
+      t_png_do_read_intrapixel(&row_info, png_ptr->t_row_buf + 1);
+   }
+#endif
+
+#ifdef PNG_READ_TRANSFORMS_SUPPORTED
+   if (png_ptr->transformations)
+      png_do_read_transformations(png_ptr, &row_info);
+#endif
+
+   /* The transformed pixel depth should match the depth now in row_info. */
+   if (png_ptr->transformed_pixel_depth == 0)
+   {
+      png_ptr->transformed_pixel_depth = row_info.pixel_depth;
+      if (row_info.pixel_depth > png_ptr->maximum_pixel_depth)
+         png_error(png_ptr, "sequential row overflow");
+   }
+
+   else if (png_ptr->transformed_pixel_depth != row_info.pixel_depth)
+      png_error(png_ptr, "internal sequential row size calculation error");
+
+#ifdef PNG_READ_INTERLACING_SUPPORTED
+   /* Expand interlaced rows to full size */
+   if (png_ptr->interlaced != 0 &&
+      (png_ptr->transformations & PNG_INTERLACE) != 0)
+   {
+      if (png_ptr->pass < 6)
+         t_png_do_read_interlace(&row_info, png_ptr->t_row_buf + 1, png_ptr->pass,
+             png_ptr->transformations);
+
+      if (dsp_row != NULL)
+         t_png_combine_row(png_ptr, dsp_row, 1/*display*/);
+
+      if (row != NULL)
+         t_png_combine_row(png_ptr, row, 0/*row*/);
+   }
+
+   else
+#endif
+   {
+      if (row != NULL)
+         t_png_combine_row(png_ptr, row, -1/*ignored*/);
+
+      if (dsp_row != NULL)
+         t_png_combine_row(png_ptr, dsp_row, -1/*ignored*/);
    }
    png_read_finish_row(png_ptr);
 
@@ -751,6 +1051,69 @@ png_read_image(png_structrp png_ptr, png_bytepp image)
       for (i = 0; i < image_height; i++)
       {
          png_read_row(png_ptr, *rp, NULL);
+         rp++;
+      }
+   }
+}
+
+void PNGAPI
+t_png_read_image(png_structrp png_ptr, t_png_bytepp image)
+{
+   png_uint_32 i, image_height;
+   int pass, j;
+   t_png_bytepp rp = NULL;
+
+   png_debug(1, "in png_read_image");
+
+   if (png_ptr == NULL)
+      return;
+
+#ifdef PNG_READ_INTERLACING_SUPPORTED
+   if ((png_ptr->flags & PNG_FLAG_ROW_INIT) == 0)
+   {
+      pass = png_set_interlace_handling(png_ptr);
+      /* And make sure transforms are initialized. */
+      png_start_read_image(png_ptr);
+   }
+   else
+   {
+      if (png_ptr->interlaced != 0 &&
+          (png_ptr->transformations & PNG_INTERLACE) == 0)
+      {
+         /* Caller called png_start_read_image or png_read_update_info without
+          * first turning on the PNG_INTERLACE transform.  We can fix this here,
+          * but the caller should do it!
+          */
+         png_warning(png_ptr, "Interlace handling should be turned on when "
+             "using png_read_image");
+         /* Make sure this is set correctly */
+         png_ptr->num_rows = png_ptr->height;
+      }
+
+      /* Obtain the pass number, which also turns on the PNG_INTERLACE flag in
+       * the above error case.
+       */
+      pass = png_set_interlace_handling(png_ptr);
+   }
+#else
+   if (png_ptr->interlaced)
+      png_error(png_ptr,
+          "Cannot read interlaced image -- interlace handler disabled");
+
+   pass = 1;
+#endif
+
+   image_height=png_ptr->height;
+
+   for (j = 0; j < pass; j++)
+   {
+       //BUG --> image is pointing to 7fff00011670 and ideally rp should point to the same
+       // but rp is pointing to some stupid checked memory address --> 61f000011670
+       // so rp is not pointing to the same address as image
+      rp = image;
+      for (i = 0; i < image_height; i++)
+      {
+         t_png_read_row(png_ptr, *rp, NULL);
          rp++;
       }
    }
@@ -945,10 +1308,10 @@ png_read_destroy(png_structrp png_ptr)
    png_destroy_gamma_table(png_ptr);
 #endif
 
-   png_free(png_ptr, png_ptr->big_row_buf);
-   png_ptr->big_row_buf = NULL;
-   png_free(png_ptr, png_ptr->big_prev_row);
-   png_ptr->big_prev_row = NULL;
+   t_png_free(png_ptr, png_ptr->t_big_row_buf);
+   png_ptr->t_big_row_buf = NULL;
+   t_png_free(png_ptr, png_ptr->t_big_prev_row);
+   png_ptr->t_big_prev_row = NULL;
    png_free(png_ptr, png_ptr->read_buffer);
    png_ptr->read_buffer = NULL;
 
@@ -1221,12 +1584,16 @@ png_read_png(png_structrp png_ptr, png_inforp info_ptr,
    /* -------------- image transformations end here ------------------- */
 
    png_free_data(png_ptr, info_ptr, PNG_FREE_ROWS, 0);
+   /* Allocate the memory to hold the image using the fields of info_ptr. */
+   //info_ptr->t_png_ptr = (_TPtr<tpngdef>)t_malloc<tpngdef>(sizeof(tpngdef));
+   //    info_ptr->t_png_ptr = malloc(sizeof(tpngdef));
    if (info_ptr->row_pointers == NULL)
    {
       png_uint_32 iptr;
 
-      info_ptr->row_pointers = png_voidcast(png_bytepp, png_malloc(png_ptr,
-          info_ptr->height * (sizeof (png_bytep))));
+      //SHADY
+      info_ptr->row_pointers = (t_png_bytepp)png_voidcast(t_png_bytepp, t_png_malloc(png_ptr,
+          info_ptr->height * (sizeof (t_png_bytep))));
 
       for (iptr=0; iptr<info_ptr->height; iptr++)
          info_ptr->row_pointers[iptr] = NULL;
@@ -1234,11 +1601,16 @@ png_read_png(png_structrp png_ptr, png_inforp info_ptr,
       info_ptr->free_me |= PNG_FREE_ROWS;
 
       for (iptr = 0; iptr < info_ptr->height; iptr++)
-         info_ptr->row_pointers[iptr] = png_voidcast(png_bytep,
-             png_malloc(png_ptr, info_ptr->rowbytes));
+         info_ptr->row_pointers[iptr] = (t_png_bytep)png_voidcast(t_png_bytep,
+             t_png_malloc(png_ptr, info_ptr->rowbytes));
    }
 
-   png_read_image(png_ptr, info_ptr->row_pointers);
+   // BUG FIXAROUND -->
+   //Problem is here --> t_png_ptr is a tainted pointer to a struct -->
+   //row_pointers is addressed in tainted region with offset 12450 -->
+   //Compiler does not pass 0x7fff012450 and instead passes 0x61a000012450 -->
+   //This is a bug in the compiler -->
+   t_png_read_image(png_ptr, info_ptr->row_pointers);
    info_ptr->valid |= PNG_INFO_IDAT;
 
    /* Read rest of file, and get additional chunks in info_ptr - REQUIRED */

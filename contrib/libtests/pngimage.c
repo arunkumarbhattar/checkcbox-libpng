@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <assert.h>
+#include <checkcbox_extensions.h>
+#include <string_tainted.h>
 
 #if defined(HAVE_CONFIG_H) && !defined(PNG_NO_CONFIG_H)
 #  include <config.h>
@@ -540,44 +542,53 @@ typedef enum
 #define RESULT_STRICT(r)   (((r) & ~((1U<<WARNINGS)-1)) == 0)
 #define RESULT_RELAXED(r)  (((r) & ~((1U<<ERRORS)-1)) == 0)
 
+typedef struct Tainteddisplay
+{
+
+        jmp_buf        error_return;      /* Where to go to on error */
+
+        _TPtr<const char>    filename;          /* The name of the original file */
+        _TPtr<const char>    operation;         /* Operation being performed */
+        int transforms;        /* Transform used in operation */
+        png_uint_32    options;           /* See display_log below */
+        png_uint_32    results;           /* A mask of errors seen */
+
+
+        size_t         original_rowbytes; /* of the original rows: */
+        //png_bytepp     original_rows;     /* from the original read */
+        t_png_bytepp   t_original_rows;     /* from the original read */
+
+        /* Original chunks valid */
+        png_uint_32    chunks;
+
+        /* Original IHDR information */
+        png_uint_32    width;
+        png_uint_32    height;
+        int bit_depth;
+        int color_type;
+        int interlace_method;
+        int compression_method;
+        int filter_method;
+
+        /* Derived information for the original image. */
+        int active_transforms;  /* transforms that do something on read */
+        int ignored_transforms; /* transforms that should do nothing */
+        }Tdisplay;
+
 struct display
 {
-   jmp_buf        error_return;      /* Where to go to on error */
+    Tdisplay *td;
 
-   const char    *filename;          /* The name of the original file */
-   const char    *operation;         /* Operation being performed */
-   int            transforms;        /* Transform used in operation */
-   png_uint_32    options;           /* See display_log below */
-   png_uint_32    results;           /* A mask of errors seen */
+    /* Used on a read, both the original read and when validating a written
+     * image.
+     */
+    // TODOBUG: BUG-->the below structures, although not Tstruct, are being allowed inside the above Tstruct -->
+    // Compiler fails to detect it -->
+    png_structp    read_pp;
+    png_infop      read_ip;
 
-
-   png_structp    original_pp;       /* used on the original read */
-   png_infop      original_ip;       /* set by the original read */
-
-   size_t         original_rowbytes; /* of the original rows: */
-   png_bytepp     original_rows;     /* from the original read */
-
-   /* Original chunks valid */
-   png_uint_32    chunks;
-
-   /* Original IHDR information */
-   png_uint_32    width;
-   png_uint_32    height;
-   int            bit_depth;
-   int            color_type;
-   int            interlace_method;
-   int            compression_method;
-   int            filter_method;
-
-   /* Derived information for the original image. */
-   int            active_transforms;  /* transforms that do something on read */
-   int            ignored_transforms; /* transforms that should do nothing */
-
-   /* Used on a read, both the original read and when validating a written
-    * image.
-    */
-   png_structp    read_pp;
-   png_infop      read_ip;
+    png_structp    original_pp;       /* used on the original read */
+    png_infop      original_ip;       /* set by the original read */
 
 #  ifdef PNG_WRITE_PNG_SUPPORTED
       /* Used to write a new image (the original info_ptr is used) */
@@ -588,6 +599,7 @@ struct display
    struct buffer  original_file;     /* Data read from the original file */
 };
 
+
 static void
 display_init(struct display *dp)
    /* Call this only once right at the start to initialize the control
@@ -596,12 +608,13 @@ display_init(struct display *dp)
     */
 {
    memset(dp, 0, sizeof *dp);
-   dp->options = WARNINGS; /* default to !verbose, !quiet */
-   dp->filename = NULL;
-   dp->operation = NULL;
+   dp->td = NEW(Tdisplay);
+   dp->td->options = WARNINGS; /* default to !verbose, !quiet */
+   dp->td->filename = NULL;
+   dp->td->operation = NULL;
    dp->original_pp = NULL;
    dp->original_ip = NULL;
-   dp->original_rows = NULL;
+   dp->td->t_original_rows = NULL;
    dp->read_pp = NULL;
    dp->read_ip = NULL;
    buffer_init(&dp->original_file);
@@ -636,13 +649,13 @@ display_clean(struct display *dp)
 #  endif
    display_clean_read(dp);
 
-   dp->original_rowbytes = 0;
-   dp->original_rows = NULL;
-   dp->chunks = 0;
+   dp->td->original_rowbytes = 0;
+   dp->td->t_original_rows = NULL;
+   dp->td->chunks = 0;
 
    png_destroy_read_struct(&dp->original_pp, &dp->original_ip, NULL);
    /* leave the filename for error detection */
-   dp->results = 0; /* reset for next time */
+   dp->td->results = 0; /* reset for next time */
 }
 
 static void
@@ -686,9 +699,9 @@ display_log(struct display *dp, error_level level, const char *fmt, ...)
     * does not return if level is above LIBPNG_WARNING
     */
 {
-   dp->results |= 1U << level;
+   dp->td->results |= 1U << level;
 
-   if (level > (error_level)(dp->options & LEVEL_MASK))
+   if (level > (error_level)(dp->td->options & LEVEL_MASK))
    {
       const char *lp;
       va_list ap;
@@ -698,7 +711,8 @@ display_log(struct display *dp, error_level level, const char *fmt, ...)
          case INFORMATION:    lp = "information"; break;
          case LIBPNG_WARNING: lp = "warning(libpng)"; break;
          case APP_WARNING:    lp = "warning(pngimage)"; break;
-         case APP_FAIL:       lp = "error(continuable)"; break;
+         case APP_FAIL:
+             lp = "error(continuable)"; break;
          case LIBPNG_ERROR:   lp = "error(libpng)"; break;
          case LIBPNG_BUG:     lp = "bug(libpng)"; break;
          case APP_ERROR:      lp = "error(pngimage)"; break;
@@ -709,16 +723,23 @@ display_log(struct display *dp, error_level level, const char *fmt, ...)
          default:             lp = "bug(pngimage)"; break;
       }
 
-      fprintf(stderr, "%s: %s: %s",
-         dp->filename != NULL ? dp->filename : "<stdin>", lp, dp->operation);
+      _Ptr<char> Temp1 = StrMalloc(t_strlen(dp->td->filename));
+      _Ptr<char> Temp2 =  StrMalloc(t_strlen(dp->td->operation));
+      t_strcpy(Temp1, dp->td->filename);
+      t_strcpy(Temp2, dp->td->operation);
 
-      if (dp->transforms != 0)
+      fprintf(stderr, "%s: %s: %s",
+              Temp1 != NULL ? Temp1 : "<stdin>", lp, Temp2);
+
+      free<char>(Temp1);
+      free<char>(Temp2);
+      if (dp->td->transforms != 0)
       {
-         int tr = dp->transforms;
+         int tr = dp->td->transforms;
 
          if (is_combo(tr))
          {
-            if (dp->options & LIST_COMBOS)
+            if (dp->td->options & LIST_COMBOS)
             {
                int trx = tr;
 
@@ -762,8 +783,8 @@ display_log(struct display *dp, error_level level, const char *fmt, ...)
    /* else do not output any message */
 
    /* Errors cause this routine to exit to the fail code */
-   if (level > APP_FAIL || (level > ERRORS && !(dp->options & CONTINUE)))
-      longjmp(dp->error_return, level);
+   if (level > APP_FAIL || (level > ERRORS && !(dp->td->options & CONTINUE)))
+      longjmp(dp->td->error_return, level);
 }
 
 /* error handler callbacks for libpng */
@@ -788,7 +809,9 @@ display_cache_file(struct display *dp, const char *filename)
    FILE *fp;
    int ret;
 
-   dp->filename = filename;
+   dp->td->filename = TNtStrMalloc(strlen(filename));
+   _TPtr<char> temp = dp->td->filename;
+   t_strcpy(dp->td->filename , filename);
 
    if (filename != NULL)
    {
@@ -877,8 +900,8 @@ read_png(struct display *dp, struct buffer *bp, const char *operation,
 
    if (operation != NULL) /* else this is a verify and do not overwrite info */
    {
-      dp->operation = operation;
-      dp->transforms = transforms;
+      dp->td->operation = CheckedToTaintedStrAdaptor(operation);
+      dp->td->transforms = transforms;
    }
 
    dp->read_pp = pp = png_create_read_struct(PNG_LIBPNG_VER_STRING, dp,
@@ -929,7 +952,6 @@ update_display(struct display *dp)
 {
    png_structp pp;
    png_infop   ip;
-
    /* Now perform the initial read with a 0 transform. */
    read_png(dp, &dp->original_file, "original read", 0/*no transform*/);
 
@@ -937,21 +959,21 @@ update_display(struct display *dp)
    dp->original_pp = pp = dp->read_pp, dp->read_pp = NULL;
    dp->original_ip = ip = dp->read_ip, dp->read_ip = NULL;
 
-   dp->original_rowbytes = png_get_rowbytes(pp, ip);
-   if (dp->original_rowbytes == 0)
+   dp->td->original_rowbytes = png_get_rowbytes(pp, ip);
+   if (dp->td->original_rowbytes == 0)
       display_log(dp, LIBPNG_BUG, "png_get_rowbytes returned 0");
 
-   dp->chunks = png_get_valid(pp, ip, 0xffffffff);
-   if ((dp->chunks & PNG_INFO_IDAT) == 0) /* set by png_read_png */
+   dp->td->chunks = png_get_valid(pp, ip, 0xffffffff);
+   if ((dp->td->chunks & PNG_INFO_IDAT) == 0) /* set by png_read_png */
       display_log(dp, LIBPNG_BUG, "png_read_png did not set IDAT flag");
 
-   dp->original_rows = png_get_rows(pp, ip);
-   if (dp->original_rows == NULL)
+   dp->td->t_original_rows = png_get_rows(pp, ip);
+   if (dp->td->t_original_rows == NULL)
       display_log(dp, LIBPNG_BUG, "png_read_png did not create row buffers");
 
    if (!png_get_IHDR(pp, ip,
-      &dp->width, &dp->height, &dp->bit_depth, &dp->color_type,
-      &dp->interlace_method, &dp->compression_method, &dp->filter_method))
+      &dp->td->width, &dp->td->height, &dp->td->bit_depth, &dp->td->color_type,
+      &dp->td->interlace_method, &dp->td->compression_method, &dp->td->filter_method))
       display_log(dp, LIBPNG_BUG, "png_get_IHDR failed");
 
    /* 'active' transforms are discovered based on the original image format;
@@ -959,10 +981,10 @@ update_display(struct display *dp)
     * does not attempt to determine the closure.
     */
    {
-      png_uint_32 chunks = dp->chunks;
+      png_uint_32 chunks = dp->td->chunks;
       int active = 0, inactive = 0;
-      int ct = dp->color_type;
-      int bd = dp->bit_depth;
+      int ct = dp->td->color_type;
+      int bd = dp->td->bit_depth;
       unsigned int i;
 
       for (i=0; i<TTABLE_SIZE; ++i)
@@ -991,8 +1013,8 @@ update_display(struct display *dp)
        */
       inactive &= ~active;
 
-      dp->active_transforms = active;
-      dp->ignored_transforms = inactive; /* excluding write-only transforms */
+      dp->td->active_transforms = active;
+      dp->td->ignored_transforms = inactive; /* excluding write-only transforms */
    }
 }
 
@@ -1012,9 +1034,9 @@ compare_read(struct display *dp, int applied_transforms)
       &color_type, &interlace_method, &compression_method, &filter_method))
       display_log(dp, LIBPNG_BUG, "png_get_IHDR failed");
 
-#  define C(item) if (item != dp->item) \
+#  define C(item) if (item != dp->td->item) \
       display_log(dp, APP_WARNING, "IHDR " #item "(%lu) changed to %lu",\
-         (unsigned long)dp->item, (unsigned long)item), e = #item
+         (unsigned long)dp->td->item, (unsigned long)item), e = #item
 
    /* The IHDR should be identical: */
    C(width);
@@ -1036,9 +1058,9 @@ compare_read(struct display *dp, int applied_transforms)
       unsigned long chunks =
          png_get_valid(dp->read_pp, dp->read_ip, 0xffffffff);
 
-      if (chunks != dp->chunks)
+      if (chunks != dp->td->chunks)
          display_log(dp, APP_FAIL, "PNG chunks changed from 0x%lx to 0x%lx",
-            (unsigned long)dp->chunks, chunks);
+            (unsigned long)dp->td->chunks, chunks);
    }
 
    /* rowbytes should be the same */
@@ -1047,15 +1069,15 @@ compare_read(struct display *dp, int applied_transforms)
    /* NOTE: on 64-bit systems this may trash the top bits of rowbytes,
     * which could lead to weird error messages.
     */
-   if (rowbytes != dp->original_rowbytes)
+   if (rowbytes != dp->td->original_rowbytes)
       display_log(dp, APP_ERROR, "PNG rowbytes changed from %lu to %lu",
-         (unsigned long)dp->original_rowbytes, (unsigned long)rowbytes);
+         (unsigned long)dp->td->original_rowbytes, (unsigned long)rowbytes);
 
    /* The rows should be the same too, unless the applied transforms includes
     * the shift transform, in which case low bits may have been lost.
     */
    {
-      png_bytepp rows = png_get_rows(dp->read_pp, dp->read_ip);
+      t_png_bytepp rows = png_get_rows(dp->read_pp, dp->read_ip);
       unsigned int mask;  /* mask (if not zero) for the final byte */
 
       if (bit_depth < 8)
@@ -1074,17 +1096,17 @@ compare_read(struct display *dp, int applied_transforms)
          display_log(dp, LIBPNG_BUG, "png_get_rows returned NULL");
 
       if ((applied_transforms & PNG_TRANSFORM_SHIFT) == 0 ||
-         (dp->active_transforms & PNG_TRANSFORM_SHIFT) == 0 ||
+         (dp->td->active_transforms & PNG_TRANSFORM_SHIFT) == 0 ||
          color_type == PNG_COLOR_TYPE_PALETTE)
       {
          unsigned long y;
 
          for (y=0; y<height; ++y)
          {
-            png_bytep row = rows[y];
-            png_bytep orig = dp->original_rows[y];
+            t_png_bytep row = rows[y];
+            t_png_bytep orig = dp->td->t_original_rows[y];
 
-            if (memcmp(row, orig, rowbytes-(mask != 0)) != 0 || (mask != 0 &&
+            if (t_memcmp(row, orig, rowbytes-(mask != 0)) != 0 || (mask != 0 &&
                ((row[rowbytes-1] & mask) != (orig[rowbytes-1] & mask))))
             {
                size_t x;
@@ -1108,7 +1130,8 @@ compare_read(struct display *dp, int applied_transforms)
          unsigned long y;
          int bpp;   /* bits-per-pixel then bytes-per-pixel */
          /* components are up to 8 bytes in size */
-         png_byte sig_bits[8];
+         _TPtr<png_byte> sig_bits = NULL;
+         sig_bits = (_TPtr<png_byte>)t_malloc<png_byte>(8);
          png_color_8p sBIT;
 
          if (png_get_sBIT(dp->read_pp, dp->read_ip, &sBIT) != PNG_INFO_sBIT)
@@ -1147,7 +1170,7 @@ compare_read(struct display *dp, int applied_transforms)
                display_log(dp, LIBPNG_ERROR, "invalid colour type %d",
                   color_type);
                /*NOTREACHED*/
-               memset(sig_bits, 0, sizeof(sig_bits));
+               t_memset(sig_bits, 0, sizeof(sig_bits));
                bpp = 0;
                break;
          }
@@ -1238,8 +1261,8 @@ compare_read(struct display *dp, int applied_transforms)
 
          for (y=0; y<height; ++y)
          {
-            png_bytep row = rows[y];
-            png_bytep orig = dp->original_rows[y];
+            t_png_bytep row = rows[y];
+            t_png_bytep orig = dp->td->t_original_rows[y];
             unsigned long x;
 
             for (x=0; x<(width-(mask!=0)); ++x)
@@ -1248,7 +1271,7 @@ compare_read(struct display *dp, int applied_transforms)
 
                for (b=0; b<bpp; ++b)
                {
-                  if ((*row++ & sig_bits[b]) != (*orig++ & sig_bits[b]))
+                  if ((*row++ & sig_bits[b]) != (*orig++ & sig_bits[b])) //#373 Heap-Buffer-Overflow
                   {
                      display_log(dp, APP_FAIL,
                         "significant bits at (%lu[%u],%lu) changed %.2x->%.2x",
@@ -1333,8 +1356,8 @@ write_png(struct display *dp, png_infop ip, int transforms)
    display_clean_write(dp); /* safety */
 
    buffer_start_write(&dp->written_file);
-   dp->operation = "write";
-   dp->transforms = transforms;
+   dp->td->operation = CheckedToTaintedStrAdaptor("write");
+   dp->td->transforms = transforms;
 
    dp->write_pp = png_create_write_struct(PNG_LIBPNG_VER_STRING, dp,
       display_error, display_warning);
@@ -1357,14 +1380,14 @@ write_png(struct display *dp, png_infop ip, int transforms)
                      PNG_TRANSFORM_STRIP_FILLER|
                      PNG_TRANSFORM_STRIP_FILLER_BEFORE))
    {
-      int ct = dp->color_type;
+      int ct = dp->td->color_type;
 
       if (transforms & (PNG_TRANSFORM_STRIP_FILLER|
                         PNG_TRANSFORM_STRIP_FILLER_BEFORE))
          ct &= ~PNG_COLOR_MASK_ALPHA;
 
-      png_set_IHDR(dp->write_pp, ip, dp->width, dp->height, dp->bit_depth, ct,
-         dp->interlace_method, dp->compression_method, dp->filter_method);
+      png_set_IHDR(dp->write_pp, ip, dp->td->width, dp->td->height, dp->td->bit_depth, ct,
+         dp->td->interlace_method, dp->td->compression_method, dp->td->filter_method);
    }
 
    png_write_png(dp->write_pp, ip, transforms, NULL/*params*/);
@@ -1380,14 +1403,14 @@ static int
 skip_transform(struct display *dp, int tr)
    /* Helper to test for a bad combo and log it if it is skipped */
 {
-   if ((dp->options & SKIP_BUGS) != 0 && is_bad_combo(tr))
+   if ((dp->td->options & SKIP_BUGS) != 0 && is_bad_combo(tr))
    {
       /* Log this to stdout if logging is on, otherwise just do an information
        * display_log.
        */
-      if ((dp->options & LOG_SKIPPED) != 0)
+      if ((dp->td->options & LOG_SKIPPED) != 0)
       {
-         printf("SKIP: %s transforms ", dp->filename);
+         printf("SKIP: %s transforms ", dp->td->filename);
 
          while (tr != 0)
          {
@@ -1404,7 +1427,7 @@ skip_transform(struct display *dp, int tr)
 
       else
          display_log(dp, INFORMATION, "%s: skipped known bad combo 0x%x",
-            dp->filename, tr);
+            dp->td->filename, tr);
 
       return 1; /* skip */
    }
@@ -1418,18 +1441,20 @@ test_one_file(struct display *dp, const char *filename)
    /* First cache the file and update the display original file
     * information for the new file.
     */
-   dp->operation = "cache file";
-   dp->transforms = 0;
+   dp->td->operation = CheckedToTaintedStrAdaptor("cache file");
+   dp->td->transforms = 0;
    display_cache_file(dp, filename);
    update_display(dp);
+
 
    /* First test: if there are options that should be ignored for this file
     * verify that they really are ignored.
     */
-   if (dp->ignored_transforms != 0)
+   if (dp->td->ignored_transforms != 0)
    {
+       //dp->read_ip->row_pointers is getting fill in here
       read_png(dp, &dp->original_file, "ignored transforms",
-         dp->ignored_transforms);
+         dp->td->ignored_transforms);
 
       /* The result should be identical to the original_rows */
       if (!compare_read(dp, 0/*transforms applied*/))
@@ -1441,9 +1466,10 @@ test_one_file(struct display *dp, const char *filename)
     * write side) then read the result back in and make sure that it hasn't
     * changed.
     */
-   dp->operation = "write";
+   dp->td->operation = CheckedToTaintedStrAdaptor("write");
    write_png(dp, dp->original_ip, 0/*transforms*/);
    read_png(dp, &dp->written_file, NULL, 0/*transforms*/);
+   //BUG: Problem is before this --> for some reason --> row_pointers is have NULL enteries..
    if (!compare_read(dp, 0/*transforms applied*/))
       return;
 #endif
@@ -1456,8 +1482,8 @@ test_one_file(struct display *dp, const char *filename)
        * the possibilities exhaustively has to use a compare and that must be
        * unsigned, because some transforms are negative on a 16-bit system.
        */
-      unsigned int active = dp->active_transforms;
-      int exhaustive = (dp->options & EXHAUSTIVE) != 0;
+      unsigned int active = dp->td->active_transforms;
+      int exhaustive = (dp->td->options & EXHAUSTIVE) != 0;
       unsigned int current = first_transform(active);
       unsigned int bad_transforms = 0;
       unsigned int bad_combo = ~0U;    /* bitwise AND of failing transforms */
@@ -1485,7 +1511,7 @@ test_one_file(struct display *dp, const char *filename)
              * result should be the same as the original apart from the loss of
              * low order bits because of the SHIFT/sBIT transform.
              */
-            dp->operation = "reversible transforms";
+            dp->td->operation = CheckedToTaintedStrAdaptor("reversible transforms");
             write_png(dp, dp->read_ip, current);
 
             /* And if this is read back in, because all the transformations were
@@ -1546,7 +1572,7 @@ test_one_file(struct display *dp, const char *filename)
       }
 
 combo:
-      if (dp->options & FIND_BAD_COMBOS)
+      if (dp->td->options & FIND_BAD_COMBOS)
       {
          /* bad_combos identifies the combos that occur in all failing cases;
           * bad_combo_list identifies transforms that do not prevent the
@@ -1554,12 +1580,12 @@ combo:
           */
          if (bad_combo != ~0U)
             printf("%s[0x%x]: PROBLEM: 0x%x[0x%x] ANTIDOTE: 0x%x\n",
-               dp->filename, active, bad_combo, bad_combo_list,
+               dp->td->filename, active, bad_combo, bad_combo_list,
                rw_transforms & ~bad_combo_list);
 
          else
-            printf("%s: no %sbad combos found\n", dp->filename,
-               (dp->options & SKIP_BUGS) ? "additional " : "");
+            printf("%s: no %sbad combos found\n", dp->td->filename,
+               (dp->td->options & SKIP_BUGS) ? "additional " : "");
       }
    }
 }
@@ -1568,7 +1594,7 @@ static int
 do_test(struct display *dp, const char *file)
    /* Exists solely to isolate the setjmp clobbers */
 {
-   int ret = setjmp(dp->error_return);
+   int ret = setjmp(dp->td->error_return);
 
    if (ret == 0)
    {
@@ -1597,67 +1623,67 @@ main(int argc, char **argv)
       const char *name = argv[option_end];
 
       if (strcmp(name, "--verbose") == 0)
-         d.options = (d.options & ~LEVEL_MASK) | VERBOSE;
+         d.td->options = (d.td->options & ~LEVEL_MASK) | VERBOSE;
 
       else if (strcmp(name, "--warnings") == 0)
-         d.options = (d.options & ~LEVEL_MASK) | WARNINGS;
+         d.td->options = (d.td->options & ~LEVEL_MASK) | WARNINGS;
 
       else if (strcmp(name, "--errors") == 0)
-         d.options = (d.options & ~LEVEL_MASK) | ERRORS;
+         d.td->options = (d.td->options & ~LEVEL_MASK) | ERRORS;
 
       else if (strcmp(name, "--quiet") == 0)
-         d.options = (d.options & ~LEVEL_MASK) | QUIET;
+         d.td->options = (d.td->options & ~LEVEL_MASK) | QUIET;
 
       else if (strcmp(name, "--exhaustive") == 0)
-         d.options |= EXHAUSTIVE;
+         d.td->options |= EXHAUSTIVE;
 
       else if (strcmp(name, "--fast") == 0)
-         d.options &= ~EXHAUSTIVE;
+         d.td->options &= ~EXHAUSTIVE;
 
       else if (strcmp(name, "--strict") == 0)
-         d.options |= STRICT;
+         d.td->options |= STRICT;
 
       else if (strcmp(name, "--relaxed") == 0)
-         d.options &= ~STRICT;
+         d.td->options &= ~STRICT;
 
       else if (strcmp(name, "--log") == 0)
       {
          ilog = option_end; /* prevent display */
-         d.options |= LOG;
+         d.td->options |= LOG;
       }
 
       else if (strcmp(name, "--nolog") == 0)
-         d.options &= ~LOG;
+         d.td->options &= ~LOG;
 
       else if (strcmp(name, "--continue") == 0)
-         d.options |= CONTINUE;
+         d.td->options |= CONTINUE;
 
       else if (strcmp(name, "--stop") == 0)
-         d.options &= ~CONTINUE;
+         d.td->options &= ~CONTINUE;
 
       else if (strcmp(name, "--skip-bugs") == 0)
-         d.options |= SKIP_BUGS;
+         d.td->options |= SKIP_BUGS;
 
       else if (strcmp(name, "--test-all") == 0)
-         d.options &= ~SKIP_BUGS;
+         d.td->options &= ~SKIP_BUGS;
 
       else if (strcmp(name, "--log-skipped") == 0)
-         d.options |= LOG_SKIPPED;
+         d.td->options |= LOG_SKIPPED;
 
       else if (strcmp(name, "--nolog-skipped") == 0)
-         d.options &= ~LOG_SKIPPED;
+         d.td->options &= ~LOG_SKIPPED;
 
       else if (strcmp(name, "--find-bad-combos") == 0)
-         d.options |= FIND_BAD_COMBOS;
+         d.td->options |= FIND_BAD_COMBOS;
 
       else if (strcmp(name, "--nofind-bad-combos") == 0)
-         d.options &= ~FIND_BAD_COMBOS;
+         d.td->options &= ~FIND_BAD_COMBOS;
 
       else if (strcmp(name, "--list-combos") == 0)
-         d.options |= LIST_COMBOS;
+         d.td->options |= LIST_COMBOS;
 
       else if (strcmp(name, "--nolist-combos") == 0)
-         d.options &= ~LIST_COMBOS;
+         d.td->options &= ~LIST_COMBOS;
 
       else if (name[0] == '-' && name[1] == '-')
       {
@@ -1685,13 +1711,13 @@ main(int argc, char **argv)
          /* Here on any return, including failures, except user/internal issues
           */
          {
-            int pass = (d.options & STRICT) ?
-               RESULT_STRICT(d.results) : RESULT_RELAXED(d.results);
+            int pass = (d.td->options & STRICT) ?
+               RESULT_STRICT(d.td->results) : RESULT_RELAXED(d.td->results);
 
             if (!pass)
                ++errors;
 
-            if (d.options & LOG)
+            if (d.td->options & LOG)
             {
                int j;
 
@@ -1701,13 +1727,14 @@ main(int argc, char **argv)
                   if (j != ilog)
                      printf("%s ", argv[j]);
 
-               printf("%s\n", d.filename);
+               printf("%s\n", d.td->filename);
             }
          }
 
          display_clean(&d);
       }
 
+      free(d.td);
       /* Release allocated memory */
       display_destroy(&d);
 

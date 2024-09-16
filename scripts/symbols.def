@@ -253,3 +253,10 @@ EXPORTS
  png_set_eXIf @247
  png_get_eXIf_1 @248
  png_set_eXIf_1 @249
+ t_png_free @250
+ t_png_malloc @251
+ t_png_write_image @252
+ t_png_write_row @253
+ t_png_read_image @254
+ t_png_read_row @255
+ t_png_calloc @256
